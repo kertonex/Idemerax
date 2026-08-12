@@ -58,6 +58,55 @@ The frontend is responsible for the user interface and communication with the ba
 | CI/CD & DevSecOps | GitHub Actions, Dependabot, Bandit, Gitleaks, Trivy |
 | Quality Assurance | pytest, Coverage.py, Ruff, ESLint, TypeScript       |
 
+
+## Initial Project Structure
+
+The initial project structure is designed around clear separation of responsibilities between API handling, application logic, domain rules, infrastructure concerns, and testing.
+
+The backend follows a modular architecture where core business logic remains independent from external frameworks and infrastructure details. The documentation directory contains architectural decisions, conventions, and reliability-related design notes that support the development process.
+
+```text
+Idemerax
+├── .gitignore
+├── LICENSE
+├── README.md
+├── backend
+│   ├── app
+│   │   ├── api
+│   │   │   └── routes
+│   │   ├── application
+│   │   │   ├── accounts
+│   │   │   ├── idempotency
+│   │   │   └── transactions
+│   │   ├── core
+│   │   ├── domain
+│   │   │   ├── account
+│   │   │   ├── idempotency
+│   │   │   ├── shared
+│   │   │   └── transaction
+│   │   ├── infrastructure
+│   │   │   ├── database
+│   │   │   │   └── models
+│   │   │   ├── reliability
+│   │   │   └── repositories
+│   │   └── schemas
+│   └── tests
+│       ├── e2e
+│       ├── integration
+│       │   ├── api
+│       │   └── database
+│       └── unit
+│           ├── application
+│           └── domain
+└── docs
+    ├── architecture
+    │   └── project-organization.md
+    ├── conventions.md
+    ├── decisions
+    └── reliability
+```
+
+
 ## Status
 
 🚧 In development
