@@ -107,6 +107,135 @@ Idemerax
 ```
 
 
+## Frontend Setup
+
+The frontend is built with React, TypeScript, Vite, ESLint, and Tailwind CSS.
+
+### Create the Frontend
+
+From the project root:
+
+```bash
+npm create vite@latest frontend
+```
+
+Select the following options:
+
+```text
+Framework:
+React
+
+Variant:
+TypeScript
+
+Linter:
+ESLint
+
+Install with npm and start now?
+Yes
+```
+
+### Install Tailwind CSS
+
+Stop the development server if it is running:
+
+```text
+Ctrl + C
+```
+
+Navigate to the frontend directory:
+
+```bash
+cd frontend
+```
+
+Install Tailwind CSS and the Vite plugin:
+
+```bash
+npm install tailwindcss @tailwindcss/vite
+```
+
+### Configure Tailwind CSS
+
+Update `frontend/vite.config.ts`:
+
+```ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+```
+
+Import Tailwind CSS in `src/index.css`:
+
+```css
+@import "tailwindcss";
+```
+
+### Verify the Setup
+
+A simple Tailwind component can be used to verify that the configuration is working:
+
+```tsx
+function App() {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <h1 className="text-4xl font-bold text-white">
+        Idemerax
+      </h1>
+    </div>
+  )
+}
+
+export default App
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+The frontend is typically available at:
+
+```text
+http://localhost:5173
+```
+
+Stop the development server when finished:
+
+```text
+Ctrl + C
+```
+
+### Linting
+
+Run ESLint:
+
+```bash
+npm run lint
+```
+
+### Production Build
+
+Build the frontend:
+
+```bash
+npm run build
+```
+
+### Preview
+
+Preview the production build locally:
+
+```bash
+npm run preview
+```
+
+
 ## Status
 
 🚧 In development
