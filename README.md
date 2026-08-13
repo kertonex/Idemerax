@@ -235,6 +235,62 @@ Preview the production build locally:
 npm run preview
 ```
 
+## Frontend Code Quality
+
+The frontend uses TypeScript, ESLint, and Prettier to maintain type safety,
+code quality, and consistent formatting.
+
+### TypeScript
+
+TypeScript is configured with strict type checking enabled.
+
+Run TypeScript validation with:
+
+```bash
+npm run typecheck
+```
+
+### ESLint
+
+ESLint is configured with TypeScript and React-specific rules to enforce
+frontend code quality.
+
+Run ESLint with:
+
+```bash
+npm run lint
+```
+
+### Formatting
+
+Prettier is used to maintain consistent code formatting.
+
+Format the frontend code with:
+
+```bash
+npm run format
+```
+
+Check formatting without modifying files:
+
+```bash
+npm run format:check
+```
+
+### Code Quality Checks
+
+Before submitting frontend changes, the following checks should pass:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm run build
+```
+
+These checks ensure TypeScript validation, ESLint rules, consistent
+formatting, and a successful production build.
+
 
 ## Status
 
