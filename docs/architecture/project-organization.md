@@ -2,13 +2,14 @@
 
 ## Overview
 
-Idemerax uses a structured repository layout to separate API handling, application workflows, domain logic, infrastructure concerns, testing, and project documentation.
+Idemerax uses a structured repository layout to separate API handling, application workflows, domain logic, infrastructure concerns, frontend application structure, testing, and project documentation.
 
 The initial structure establishes clear module boundaries and provides a foundation for incremental feature development.
 
 ---
 
 ## Repository Structure
+
 
 ```text
 Idemerax/
@@ -52,6 +53,16 @@ Idemerax/
 │       └── unit/
 │           ├── application/
 │           └── domain/
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── features/
+│       ├── pages/
+│       ├── routes/
+│       └── shared/
+│           ├── types/
+│           └── utils/
 │
 └── docs/
     ├── architecture/

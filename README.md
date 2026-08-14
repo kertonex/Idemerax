@@ -24,7 +24,7 @@ Real-world financial transactions, banking integrations, payment providers, card
 
 ## System Architecture
 
-Idemerax follows a modular full-stack architecture with a React frontend, FastAPI backend, business logic layer, SQLAlchemy data access layer, and PostgreSQL database.
+Idemerax follows a modular full-stack architecture with a React frontend, FastAPI backend, application and domain layers, SQLAlchemy data access, and PostgreSQL persistence.
 
 ```text
 React Frontend
@@ -34,18 +34,20 @@ React Frontend
 FastAPI Backend
       │
       ▼
-Business Logic
+Application Layer
       │
       ▼
-SQLAlchemy
+Domain Layer
+      │
+      ▼
+Infrastructure
       │
       ▼
 PostgreSQL
 ```
 
-The frontend is responsible for the user interface and communication with the backend API. Core transaction processing, validation, idempotency, and state management are handled by the backend.
+The frontend is responsible for the user interface and communication with the backend API. Core transaction processing, validation, idempotency, and transaction state management are handled by the backend.
 
-> 📘 Detailed system architecture documentation will be added soon.
 
 ## Technology Stack
 
@@ -59,51 +61,68 @@ The frontend is responsible for the user interface and communication with the ba
 | Quality Assurance | pytest, Coverage.py, Ruff, ESLint, TypeScript       |
 
 
-## Initial Project Structure
+## Project Structure
 
-The initial project structure is designed around clear separation of responsibilities between API handling, application logic, domain rules, infrastructure concerns, and testing.
+The project structure is designed around clear separation of responsibilities between API handling, application workflows, domain rules, infrastructure concerns, frontend application structure, testing, and documentation.
 
-The backend follows a modular architecture where core business logic remains independent from external frameworks and infrastructure details. The documentation directory contains architectural decisions, conventions, and reliability-related design notes that support the development process.
+The backend follows a modular architecture where core domain logic remains independent from API and infrastructure concerns. The frontend follows a feature-oriented structure to keep UI components, application features, pages, routing, and shared resources clearly separated.
+
+> 📘 For a detailed overview of the project organization and module responsibilities, see the [Project Organization](docs/architecture/project-organization.md) documentation.
+
 
 ```text
-Idemerax
+Idemerax/
 ├── .gitignore
 ├── LICENSE
 ├── README.md
-├── backend
-│   ├── app
-│   │   ├── api
-│   │   │   └── routes
-│   │   ├── application
-│   │   │   ├── accounts
-│   │   │   ├── idempotency
-│   │   │   └── transactions
-│   │   ├── core
-│   │   ├── domain
-│   │   │   ├── account
-│   │   │   ├── idempotency
-│   │   │   ├── shared
-│   │   │   └── transaction
-│   │   ├── infrastructure
-│   │   │   ├── database
-│   │   │   │   └── models
-│   │   │   ├── reliability
-│   │   │   └── repositories
-│   │   └── schemas
-│   └── tests
-│       ├── e2e
-│       ├── integration
-│       │   ├── api
-│       │   └── database
-│       └── unit
-│           ├── application
-│           └── domain
-└── docs
-    ├── architecture
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── routes/
+│   │   ├── application/
+│   │   │   ├── accounts/
+│   │   │   ├── idempotency/
+│   │   │   └── transactions/
+│   │   ├── core/
+│   │   ├── domain/
+│   │   │   ├── account/
+│   │   │   ├── idempotency/
+│   │   │   ├── shared/
+│   │   │   └── transaction/
+│   │   ├── infrastructure/
+│   │   │   ├── database/
+│   │   │   │   └── models/
+│   │   │   ├── reliability/
+│   │   │   └── repositories/
+│   │   └── schemas/
+│   │
+│   └── tests/
+│       ├── e2e/
+│       ├── integration/
+│       │   ├── api/
+│       │   └── database/
+│       └── unit/
+│           ├── application/
+│           └── domain/
+│
+├── frontend/
+│   └── src/
+│       ├── assets/
+│       ├── components/
+│       ├── features/
+│       ├── pages/
+│       ├── routes/
+│       └── shared/
+│           ├── types/
+│           └── utils/
+│
+└── docs/
+    ├── architecture/
     │   └── project-organization.md
     ├── conventions.md
-    ├── decisions
-    └── reliability
+    ├── decisions/
+    └── reliability/
 ```
 
 
