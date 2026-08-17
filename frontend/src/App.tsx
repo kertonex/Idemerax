@@ -1,11 +1,12 @@
+import AppRoutes from './routes/AppRoutes';
+import AppShell from './components/layout/AppShell';
+
 function App() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-900">
-      <h1 className="text-4xl font-bold text-white">
-        Idemerax
-      </h1>
-    </main>
-  )
+    <AppShell>
+      <AppRoutes />
+    </AppShell>
+  );
 }
 
-export default App
+export default App;

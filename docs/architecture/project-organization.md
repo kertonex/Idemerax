@@ -45,24 +45,35 @@ Idemerax/
 │   │
 │   └── tests/
 │       ├── e2e/
-│       │
 │       ├── integration/
 │       │   ├── api/
 │       │   └── database/
-│       │
 │       └── unit/
 │           ├── application/
 │           └── domain/
 │
 ├── frontend/
-│   └── src/
-│       ├── components/
-│       ├── features/
-│       ├── pages/
-│       ├── routes/
-│       └── shared/
-│           ├── types/
-│           └── utils/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   │   └── layout/
+│   │   │       ├── AppShell.tsx
+│   │   │       ├── Header.tsx
+│   │   │       ├── Sidebar.tsx
+│   │   │       └── MainContent.tsx
+│   │   │
+│   │   ├── features/
+│   │   ├── pages/
+│   │   ├── routes/
+│   │   └── shared/
+│   │       ├── types/
+│   │       └── utils/
+│   │
+│   └── tests/
+│       ├── setup.ts
+│       └── components/
+│           └── layout/
+│               └── AppShell.test.tsx
 │
 └── docs/
     ├── architecture/
@@ -258,6 +269,69 @@ backend/tests/e2e/
 Contains tests for complete application workflows.
 
 ---
+
+## Frontend Layout Structure
+
+The `frontend/` directory contains the React application structure.
+
+The initial frontend layout provides a reusable application shell for future pages and features.
+
+### Layout Components
+
+Location:
+
+```text
+frontend/src/components/layout/
+```
+
+Contains shared layout components:
+
+* `AppShell.tsx` — main application container
+* `Header.tsx` — application header area
+* `Sidebar.tsx` — navigation structure
+* `MainContent.tsx` — main content container
+
+The layout components separate application structure from page-specific content and provide a foundation for future frontend features.
+
+---
+
+## Frontend Testing
+
+The frontend uses Vitest and React Testing Library for component testing.
+
+The current frontend testing setup includes:
+
+* Vitest as the test runner
+* jsdom as the browser environment
+* React Testing Library for React component rendering
+* Testing Library DOM matchers for assertions
+
+Frontend tests are located separately from application code:
+
+Location:
+
+```text
+frontend/tests/
+```
+
+Current test structure:
+
+```text
+frontend/tests/
+├── setup.ts
+└── components/
+    └── layout/
+        └── AppShell.test.tsx
+```
+
+The initial application shell test verifies:
+
+* Application shell rendering
+* Navigation elements
+* Header content
+* Main content rendering
+
+This structure allows additional component tests to be added as the frontend grows.
 
 ## Documentation
 
