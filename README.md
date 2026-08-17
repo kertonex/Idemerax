@@ -51,14 +51,14 @@ The frontend is responsible for the user interface and communication with the ba
 
 ## Technology Stack
 
-| Area              | Technologies                                        |
-| ----------------- | --------------------------------------------------- |
-| Backend           | Python, FastAPI, Pydantic, SQLAlchemy, Alembic      |
-| Frontend          | TypeScript, React, Vite, Tailwind CSS               |
-| Database          | PostgreSQL                                          |
-| Infrastructure    | Docker, Docker Compose                              |
-| CI/CD & DevSecOps | GitHub Actions, Dependabot, Bandit, Gitleaks, Trivy |
-| Quality Assurance | pytest, Coverage.py, Ruff, ESLint, TypeScript       |
+| Area              | Technologies                                                                 |
+| ----------------- | -----------------------------------------------------------------------------|
+| Backend           | Python, FastAPI, Pydantic, SQLAlchemy, Alembic                               |
+| Frontend          | TypeScript, React, Vite, Tailwind CSS                                        |
+| Database          | PostgreSQL                                                                   |
+| Infrastructure    | Docker, Docker Compose                                                       |
+| CI/CD & DevSecOps | GitHub Actions, Dependabot, Bandit, Gitleaks, Trivy                          |
+| Quality Assurance | pytest, Coverage.py, Ruff, ESLint, TypeScript, Vitest, React Testing Library |
 
 
 ## Project Structure
@@ -107,15 +107,26 @@ Idemerax/
 │           └── domain/
 │
 ├── frontend/
-│   └── src/
-│       ├── assets/
-│       ├── components/
-│       ├── features/
-│       ├── pages/
-│       ├── routes/
-│       └── shared/
-│           ├── types/
-│           └── utils/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   │   └── layout/
+│   │   │       ├── AppShell.tsx
+│   │   │       ├── Header.tsx
+│   │   │       ├── Sidebar.tsx
+│   │   │       └── MainContent.tsx
+│   │   ├── features/
+│   │   ├── pages/
+│   │   ├── routes/
+│   │   └── shared/
+│   │       ├── types/
+│   │       └── utils/
+│   │
+│   └── tests/
+│       ├── setup.ts
+│       └── components/
+│           └── layout/
+│               └── AppShell.test.tsx
 │
 └── docs/
     ├── architecture/
@@ -254,6 +265,34 @@ Preview the production build locally:
 npm run preview
 ```
 
+## Frontend Testing
+
+The frontend uses Vitest and React Testing Library for component testing.
+
+The testing environment includes:
+
+- Vitest as the test runner
+- jsdom as the browser environment
+- React Testing Library for React component rendering
+- Testing Library DOM matchers for DOM-specific assertions
+
+Frontend tests are kept separately from the application source code:
+
+    frontend/tests/
+    ├── setup.ts
+    └── components/
+        └── layout/
+            └── AppShell.test.tsx
+
+The initial application shell test covers:
+
+- Application shell rendering
+- Navigation elements
+- Header content
+- Main content rendering
+
+Additional component tests can be added to the corresponding directories as the frontend grows.
+
 ## Frontend Code Quality
 
 The frontend uses TypeScript, ESLint, and Prettier to maintain type safety,
@@ -304,6 +343,7 @@ Before submitting frontend changes, the following checks should pass:
 npm run typecheck
 npm run lint
 npm run format:check
+npm run test
 npm run build
 ```
 
