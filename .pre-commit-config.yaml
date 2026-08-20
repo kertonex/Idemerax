@@ -37,3 +37,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^frontend/
+
+  # Security - detect accidentally committed secrets across the repository
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
