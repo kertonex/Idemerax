@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: bash -c 'cd backend && uv run ruff check .'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd backend && uv run pytest'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+
+      # Frontend validation
+      - id: frontend-lint
+        name: frontend lint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+
+      - id: frontend-test
+        name: frontend tests
+        entry: bash -c 'cd frontend && npm run test'
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+
+  # Security - detect accidentally committed secrets across the repository
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
