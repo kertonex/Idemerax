@@ -2,27 +2,41 @@
 
 Idemerax is a full-stack transaction processing platform inspired by financial systems. The project explores distributed reliability challenges with a focus on data integrity, transaction consistency, idempotency, fault tolerance, and recovery from unreliable networks.
 
-## Core Scope
+---
+
+## 📌 Project Information
+
+This project is a development and demonstration environment focused on reliable transaction processing concepts.
+
+The MVP does not represent a production banking system and does not include real financial integrations, payment providers, card networks, or regulatory systems.
+
+Only test data, mock data, and generated sample data should be used during development and testing.
+
+---
+
+## 🎯 Core Scope
 
 The MVP focuses on reliable transaction processing and includes:
 
-* Account management
-* Simulated money transfers
-* Transaction processing and history
-* Basic card management
-* Authentication and authorization
+- Account management
+- Simulated money transfers
+- Transaction processing and history
+- Basic card management
+- Authentication and authorization
 
 The primary engineering focus is on:
 
-* Idempotent transaction processing
-* Data integrity and consistency
-* Fault tolerance and failure handling
-* Recovery from unreliable network conditions
-* Reliable transaction state management
+- Idempotent transaction processing
+- Data integrity and consistency
+- Fault tolerance and failure handling
+- Recovery from unreliable network conditions
+- Reliable transaction state management
 
 Real-world financial transactions, banking integrations, payment providers, card networks, and regulatory systems are outside the scope of the MVP.
 
-## System Architecture
+---
+
+## 🏗️ System Architecture
 
 Idemerax follows a modular full-stack architecture with a React frontend, FastAPI backend, application and domain layers, SQLAlchemy data access, and PostgreSQL persistence.
 
@@ -44,15 +58,31 @@ Infrastructure
       │
       ▼
 PostgreSQL
-```
+````
 
-The frontend is responsible for the user interface and communication with the backend API. Core transaction processing, validation, idempotency, and transaction state management are handled by the backend.
+The frontend is responsible for the user interface and communication with the backend API.
 
+Core transaction processing, validation, idempotency, and transaction state management are handled by the backend.
 
-## Technology Stack
+---
+
+## 📚 Repository Documentation
+
+The repository contains additional documentation covering development workflows, contribution standards, security practices, and architectural decisions.
+
+Important documentation:
+
+* [Contribution Guidelines](CONTRIBUTING.md)
+* [Security Policy](SECURITY.md)
+* [Project Organization](docs/architecture/project-organization.md)
+* [Development Conventions](docs/conventions.md)
+
+---
+
+## 🛠️ Technology Stack
 
 | Area              | Technologies                                                                 |
-| ----------------- | -----------------------------------------------------------------------------|
+| ----------------- | ---------------------------------------------------------------------------- |
 | Backend           | Python, FastAPI, Pydantic, SQLAlchemy, Alembic                               |
 | Frontend          | TypeScript, React, Vite, Tailwind CSS                                        |
 | Database          | PostgreSQL                                                                   |
@@ -60,22 +90,28 @@ The frontend is responsible for the user interface and communication with the ba
 | CI/CD & DevSecOps | GitHub Actions, Dependabot, Bandit, Gitleaks, Trivy                          |
 | Quality Assurance | pytest, Coverage.py, Ruff, ESLint, TypeScript, Vitest, React Testing Library |
 
+---
 
-## Project Structure
+## 📂 Project Structure
 
 The project structure is designed around clear separation of responsibilities between API handling, application workflows, domain rules, infrastructure concerns, frontend application structure, testing, and documentation.
 
-The backend follows a modular architecture where core domain logic remains independent from API and infrastructure concerns. The frontend follows a feature-oriented structure to keep UI components, application features, pages, routing, and shared resources clearly separated.
+The backend follows a modular architecture where core domain logic remains independent from API and infrastructure concerns.
+
+The frontend follows a feature-oriented structure to keep UI components, application features, pages, routing, and shared resources clearly separated.
 
 > 📘 For a detailed overview of the project organization and module responsibilities, see the [Project Organization](docs/architecture/project-organization.md) documentation.
 
-
 ```text
 Idemerax/
+├── .github/
+│   └── ISSUE_TEMPLATE/
 ├── .gitignore
+├── .pre-commit-config.yaml
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
-│
+├── SECURITY.md
 ├── backend/
 │   ├── app/
 │   │   ├── api/
@@ -96,7 +132,6 @@ Idemerax/
 │   │   │   ├── reliability/
 │   │   │   └── repositories/
 │   │   └── schemas/
-│   │
 │   └── tests/
 │       ├── e2e/
 │       ├── integration/
@@ -105,43 +140,37 @@ Idemerax/
 │       └── unit/
 │           ├── application/
 │           └── domain/
-│
+├── commitlint.config.cjs
+├── docs/
+│   ├── architecture/
+│   ├── decisions/
+│   └── reliability/
 ├── frontend/
+│   ├── public/
 │   ├── src/
 │   │   ├── assets/
 │   │   ├── components/
 │   │   │   └── layout/
-│   │   │       ├── AppShell.tsx
-│   │   │       ├── Header.tsx
-│   │   │       ├── Sidebar.tsx
-│   │   │       └── MainContent.tsx
 │   │   ├── features/
 │   │   ├── pages/
 │   │   ├── routes/
 │   │   └── shared/
 │   │       ├── types/
 │   │       └── utils/
-│   │
 │   └── tests/
-│       ├── setup.ts
 │       └── components/
 │           └── layout/
-│               └── AppShell.test.tsx
-│
-└── docs/
-    ├── architecture/
-    │   └── project-organization.md
-    ├── conventions.md
-    ├── decisions/
-    └── reliability/
+├── package-lock.json
+└── package.json
 ```
 
+---
 
-## Frontend Setup
+## 💻 Frontend Setup
 
 The frontend is built with React, TypeScript, Vite, ESLint, and Tailwind CSS.
 
-### Create the Frontend
+### 🚀 Create the Frontend
 
 From the project root:
 
@@ -165,7 +194,7 @@ Install with npm and start now?
 Yes
 ```
 
-### Install Tailwind CSS
+### 🎨 Install Tailwind CSS
 
 Stop the development server if it is running:
 
@@ -185,9 +214,13 @@ Install Tailwind CSS and the Vite plugin:
 npm install tailwindcss @tailwindcss/vite
 ```
 
-### Configure Tailwind CSS
+### ⚙️ Configure Tailwind CSS
 
-Update `frontend/vite.config.ts`:
+Update:
+
+```text
+frontend/vite.config.ts
+```
 
 ```ts
 import { defineConfig } from 'vite'
@@ -199,13 +232,17 @@ export default defineConfig({
 })
 ```
 
-Import Tailwind CSS in `src/index.css`:
+Import Tailwind CSS in:
+
+```text
+src/index.css
+```
 
 ```css
 @import "tailwindcss";
 ```
 
-### Verify the Setup
+### ✅ Verify the Setup
 
 A simple Tailwind component can be used to verify that the configuration is working:
 
@@ -241,7 +278,7 @@ Stop the development server when finished:
 Ctrl + C
 ```
 
-### Linting
+### 🔍 Linting
 
 Run ESLint:
 
@@ -249,7 +286,7 @@ Run ESLint:
 npm run lint
 ```
 
-### Production Build
+### 📦 Production Build
 
 Build the frontend:
 
@@ -257,7 +294,7 @@ Build the frontend:
 npm run build
 ```
 
-### Preview
+### 👀 Preview
 
 Preview the production build locally:
 
@@ -265,65 +302,69 @@ Preview the production build locally:
 npm run preview
 ```
 
-## Frontend Testing
+---
+
+## 🧪 Frontend Testing
 
 The frontend uses Vitest and React Testing Library for component testing.
 
 The testing environment includes:
 
-- Vitest as the test runner
-- jsdom as the browser environment
-- React Testing Library for React component rendering
-- Testing Library DOM matchers for DOM-specific assertions
+* Vitest as the test runner
+* jsdom as the browser environment
+* React Testing Library for React component rendering
+* Testing Library DOM matchers for DOM-specific assertions
 
 Frontend tests are kept separately from the application source code:
 
-    frontend/tests/
-    ├── setup.ts
-    └── components/
-        └── layout/
-            └── AppShell.test.tsx
+```text
+frontend/tests/
+├── setup.ts
+└── components/
+    └── layout/
+        └── AppShell.test.tsx
+```
 
 The initial application shell test covers:
 
-- Application shell rendering
-- Navigation elements
-- Header content
-- Main content rendering
+* Application shell rendering
+* Navigation elements
+* Header content
+* Main content rendering
 
 Additional component tests can be added to the corresponding directories as the frontend grows.
 
-## Frontend Code Quality
+---
 
-The frontend uses TypeScript, ESLint, and Prettier to maintain type safety,
-code quality, and consistent formatting.
+## ✨ Frontend Code Quality
 
-### TypeScript
+The frontend uses TypeScript, ESLint, and Prettier to maintain type safety, code quality, and consistent formatting.
+
+### 🔷 TypeScript
 
 TypeScript is configured with strict type checking enabled.
 
-Run TypeScript validation with:
+Run TypeScript validation:
 
 ```bash
 npm run typecheck
 ```
 
-### ESLint
+### 🔍 ESLint
 
-ESLint is configured with TypeScript and React-specific rules to enforce
-frontend code quality.
+ESLint is configured with TypeScript and React-specific rules to enforce frontend code quality.
 
-Run ESLint with:
+Run ESLint:
 
 ```bash
 npm run lint
 ```
 
-### Formatting
+### 🎨 Formatting
 
 Prettier is used to maintain consistent code formatting.
 
-Format the frontend code with:
+Format the frontend code:
 
 ```bash
 npm run format
@@ -335,7 +376,7 @@ Check formatting without modifying files:
 npm run format:check
 ```
 
-### Code Quality Checks
+### ✅ Code Quality Checks
 
 Before submitting frontend changes, the following checks should pass:
 
@@ -347,10 +388,10 @@ npm run test
 npm run build
 ```
 
-These checks ensure TypeScript validation, ESLint rules, consistent
-formatting, and a successful production build.
+These checks ensure TypeScript validation, ESLint rules, consistent formatting, and a successful production build.
 
+---
 
-## Status
+## 🚦 Status
 
 🚧 In development
