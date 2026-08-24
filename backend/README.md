@@ -28,6 +28,64 @@ From the `backend/` directory, install the project dependencies:
 uv sync
 ```
 
+## PostgreSQL Development Setup
+
+PostgreSQL is used as the database system for local backend development.
+
+The local development database uses the following configuration:
+
+```text
+Host: localhost
+Port: 5432
+Database: idemerax
+User: idemerax_user
+```
+
+### Environment Configuration
+
+Create a local `.env` file from `.env.example`.
+
+The required database environment variables are:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=idemerax
+DATABASE_USER=idemerax_user
+DATABASE_PASSWORD=your_local_database_password
+```
+
+The `.env` file contains local development credentials and must not be committed to the repository.
+
+The `.env.example` file contains placeholder values only and can be committed safely.
+
+### Verify PostgreSQL
+
+Verify that the PostgreSQL service is running:
+
+```bash
+pg_isready -h localhost -p 5432
+```
+
+A successful result should report:
+
+```text
+localhost:5432 - accepting connections
+```
+
+Verify that the configured application user can connect to the local development database:
+
+```bash
+psql -h localhost -p 5432 -U idemerax_user -d idemerax
+```
+
+Enter the local password configured for `idemerax_user`.
+
+A successful connection should open a PostgreSQL prompt for the `idemerax` database.
+
+Database connection and session management are handled by subsequent database work items.
+
+
 This creates or updates the local virtual environment and installs the configured dependencies.
 
 ## Run the Application
