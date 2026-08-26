@@ -69,3 +69,10 @@ def test_user_account_relationships_are_defined() -> None:
 
     assert user_relationship.back_populates == "user"
     assert account_relationship.back_populates == "accounts"
+
+
+def test_account_user_id_is_indexed() -> None:
+    """Verify that the account user_id column has a database index."""
+    user_id_column = Account.__table__.c.user_id
+
+    assert user_id_column.index is True
