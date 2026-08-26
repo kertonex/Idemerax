@@ -19,6 +19,7 @@ class Account(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
+        index=True,
     )
     balance: Mapped[Decimal] = mapped_column(
         Numeric(19, 4),
