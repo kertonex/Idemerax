@@ -25,9 +25,10 @@ def test_database_models_define_primary_keys() -> None:
     models = (User, Account, Transaction, Card)
 
     for model in models:
-        primary_keys = list(model.__table__.primary_key.columns)
+        primary_keys = list(model.__table__.primary_key)
         assert len(primary_keys) == 1
         assert primary_keys[0].name == "id"
+
 
 
 def test_database_models_define_expected_columns() -> None:
@@ -36,3 +37,19 @@ def test_database_models_define_expected_columns() -> None:
     assert isinstance(Account.__table__.c.balance.type, Numeric)
     assert isinstance(Transaction.__table__.c.amount.type, Numeric)
     assert isinstance(Card.__table__.c.status.type, String)
+
+
+def test_user_email_is_unique() -> None:
+    """Verify that user email addresses are unique."""
+    email_column = User.__table__.c.email
+
+    assert email_column.unique is True
+
+
+def test_account_user_id_has_foreign_key() -> None:
+    """Verify that account user_id references the users table."""
+    user_id_column = Account.__table__.c.user_id
+    foreign_keys = list(user_id_column.foreign_keys)
+
+    assert len(foreign_keys) == 1
+    assert foreign_keys[0].target_fullname == "users.id"

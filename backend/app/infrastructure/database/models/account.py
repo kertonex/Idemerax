@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import Numeric
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database.base import Base
@@ -12,7 +12,10 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+    )
     balance: Mapped[Decimal] = mapped_column(
         Numeric(19, 4),
         nullable=False,
