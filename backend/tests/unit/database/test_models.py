@@ -1,4 +1,5 @@
 from sqlalchemy import Numeric, String
+from sqlalchemy.orm import RelationshipProperty
 
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.models import Account, Card, Transaction, User
@@ -53,3 +54,18 @@ def test_account_user_id_has_foreign_key() -> None:
 
     assert len(foreign_keys) == 1
     assert foreign_keys[0].target_fullname == "users.id"
+
+
+def test_user_account_relationships_are_defined() -> None:
+    """Verify that the User-Account ORM relationships are configured."""
+    user_relationship = User.__mapper__.relationships["accounts"]
+    account_relationship = Account.__mapper__.relationships["user"]
+
+    assert isinstance(user_relationship, RelationshipProperty)
+    assert isinstance(account_relationship, RelationshipProperty)
+
+    assert user_relationship.mapper.class_ is Account
+    assert account_relationship.mapper.class_ is User
+
+    assert user_relationship.back_populates == "user"
+    assert account_relationship.back_populates == "accounts"
