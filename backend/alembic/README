@@ -1,3 +1,41 @@
-# Alembic Migrations
+# Alembic
 
-This directory contains the Alembic migration environment for the backend database.
+Alembic is used to manage database schema migrations for the backend application.
+
+## Create a migration
+
+Generate a new migration from the current SQLAlchemy metadata:
+
+```bash
+alembic revision --autogenerate -m "describe change"
+````
+
+Review the generated migration before applying it.
+
+## Apply migrations
+
+Apply all pending migrations:
+
+```bash
+alembic upgrade head
+```
+
+## Check current migration
+
+Display the current migration revision of the database:
+
+```bash
+alembic current
+```
+
+## Check for pending schema changes
+
+Compare the current database schema with the application's SQLAlchemy metadata:
+
+```bash
+alembic check
+```
+
+## Configuration
+
+Alembic uses the application's existing database configuration. Database credentials are provided through the application's environment configuration and are not stored in `alembic.ini`.
