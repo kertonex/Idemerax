@@ -1,6 +1,12 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
+import { getHealth } from '../shared/api/health';
 
 function DashboardPage() {
+  useEffect(() => {
+    void getHealth();
+  }, []);
+
   return <h1 className="text-2xl font-semibold">Dashboard</h1>;
 }
 
