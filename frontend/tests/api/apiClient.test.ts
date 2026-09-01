@@ -81,14 +81,28 @@ describe('apiClient', () => {
     expect(headers.get('Content-Type')).toBe('application/json');
   });
 
-  it('throws an error when the api request fails', async () => {
+  it('throws backend error details when the api request fails', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 500,
+      status: 400,
+      json: () =>
+        Promise.resolve({
+          detail: 'Invalid request',
+        }),
     });
 
     await expect(apiClient('/accounts')).rejects.toThrow(
-      'API request failed with status 500',
+      'Invalid request',
+    );
+  });
+
+  it('throws a connection error when the api is unreachable', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(
+      new Error(),
+    );
+
+    await expect(apiClient('/accounts')).rejects.toThrow(
+      'Unable to connect to API',
     );
   });
 });
