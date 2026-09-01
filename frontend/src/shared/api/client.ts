@@ -1,3 +1,5 @@
+import type { ApiErrorResponse } from '../types/api';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const DEFAULT_HEADERS: HeadersInit = {
@@ -30,14 +32,32 @@ export async function apiClient<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...requestOptions,
-    headers,
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      headers,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw new Error('Unable to connect to API');
+  }
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
+    let errorData: ApiErrorResponse | undefined;
+
+    try {
+      errorData = (await response.json()) as ApiErrorResponse;
+    } catch {
+      errorData = undefined;
+    }
+
+    throw new Error(
+      errorData?.detail ??
+        errorData?.message ??
+        `API request failed with status ${response.status}`,
+    );
   }
 
   return response.json() as Promise<T>;
