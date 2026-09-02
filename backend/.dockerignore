@@ -1,0 +1,15 @@
+# Environment configuration
+.env
+
+# Version control
+.git
+
+# Python and tooling caches
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+
+# Test and coverage artifacts
+htmlcov
+tests
