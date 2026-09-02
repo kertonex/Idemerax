@@ -15,7 +15,7 @@ describe('apiClient', () => {
     const result = await apiClient<{ id: number }>('/accounts');
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8080/accounts',
+      'http://localhost:8000/accounts',
       expect.objectContaining({
         headers: expect.any(Headers),
       }),
