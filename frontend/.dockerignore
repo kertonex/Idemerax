@@ -1,0 +1,14 @@
+# Environment configuration
+.env
+
+# Version control
+.git
+
+# Dependencies and caches
+node_modules
+.npm
+.cache
+
+# Build and test artifacts
+dist
+coverage
