@@ -92,6 +92,87 @@ Important documentation:
 
 ---
 
+## 🐳 Docker Compose Setup
+
+The complete local development environment can be started using Docker Compose from the project root.
+
+Docker Compose uses the root-level `.env` file for container configuration. Application-specific environment variables remain scoped to their respective applications.
+
+### ⚙️ Environment Configuration
+
+Create the local environment file from the provided example:
+
+```bash
+cp .env.example .env
+```
+
+Update the required values in:
+
+```text
+.env
+```
+
+Example:
+
+```env
+DATABASE_NAME=idemerax
+DATABASE_USER=idemerax_user
+DATABASE_PASSWORD=your_local_database_password
+```
+
+The root `.env` file is used by Docker Compose and should not be committed.
+
+### 🚀 Start the Development Environment
+
+Run Docker Compose from the project root:
+
+```bash
+docker compose up -d
+```
+
+Check the running services:
+
+```bash
+docker compose ps
+```
+
+The environment includes:
+
+- PostgreSQL database
+- FastAPI backend
+- React frontend
+
+### 🛑 Stop the Environment
+
+Stop all running containers:
+
+```bash
+docker compose down
+```
+
+### 🔍 Verify the Environment
+
+Check PostgreSQL readiness:
+
+```bash
+docker compose exec postgres pg_isready
+```
+
+Verify backend health:
+
+```text
+http://localhost:8000/health
+```
+
+The frontend is available at:
+
+```text
+http://localhost
+```
+
+No additional `--env-file` parameter is required when starting Docker Compose from the project root.
+
+
 ## 📂 Project Structure
 
 The project structure is designed around clear separation of responsibilities between API handling, application workflows, domain rules, infrastructure concerns, frontend application structure, testing, and documentation.
