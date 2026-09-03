@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
