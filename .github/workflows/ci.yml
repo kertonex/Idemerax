@@ -8,6 +8,32 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # Shared test database configuration used by Alembic and pytest.
+    # These are non-production credentials for the isolated CI environment.
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: test_db
+      DATABASE_USER: test_user
+      DATABASE_PASSWORD: test_password
+
+    services:
+      # Provide a PostgreSQL instance so database integration tests
+      # run against the same database type used by the application.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test_user -d test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -18,8 +44,23 @@ jobs:
           python-version-file: backend/.python-version
 
       - name: Set up uv
+        # Pin the action to an immutable commit for reproducible CI runs.
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
 
       - name: Install backend dependencies
         working-directory: backend
+        # --locked ensures CI uses exactly the dependencies recorded in uv.lock.
         run: uv sync --locked --dev
+
+      - name: Run database migrations
+        working-directory: backend
+        # Create/update the database schema before running integration tests.
+        run: uv run alembic upgrade head
+
+      - name: Run backend tests
+        working-directory: backend
+        run: uv run pytest
+
+      - name: Run backend quality checks
+        working-directory: backend
+        run: uv run ruff check .
