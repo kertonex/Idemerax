@@ -1,5 +1,7 @@
 name: CI
 
+# Run the CI pipeline for every push and pull request.
+# This ensures changes are automatically validated before they are merged.
 on:
   push:
   pull_request:
@@ -8,8 +10,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
-    # Shared test database configuration used by Alembic and pytest.
-    # These are non-production credentials for the isolated CI environment.
+    # Shared environment configuration for the isolated CI environment.
+    # These values are test-only credentials and must never contain
+    # production secrets.
     env:
       DATABASE_HOST: localhost
       DATABASE_PORT: 5432
@@ -17,9 +20,14 @@ jobs:
       DATABASE_USER: test_user
       DATABASE_PASSWORD: test_password
 
+      # The frontend API client reads this variable via Vite.
+      # The backend runs locally on the same GitHub Actions runner.
+      VITE_API_URL: http://localhost:8000
+
+    # Start PostgreSQL as a service container for backend integration tests.
+    # Using the same database engine as the application keeps CI behavior
+    # representative of the real application environment.
     services:
-      # Provide a PostgreSQL instance so database integration tests
-      # run against the same database type used by the application.
       postgres:
         image: postgres:17
         env:
@@ -28,6 +36,9 @@ jobs:
           POSTGRES_PASSWORD: test_password
         ports:
           - 5432:5432
+
+        # Wait until PostgreSQL is ready to accept connections before
+        # allowing dependent CI steps to run.
         options: >-
           --health-cmd="pg_isready -U test_user -d test_db"
           --health-interval=10s
@@ -35,40 +46,68 @@ jobs:
           --health-retries=5
 
     steps:
+      # Check out the exact repository revision that triggered the workflow.
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # Use the Python version defined by the repository instead of
+      # duplicating the version inside the workflow configuration.
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version-file: backend/.python-version
 
+      # Install uv, the project's Python package and environment manager.
+      # The action is pinned to an immutable commit for reproducible CI runs.
       - name: Set up uv
-        # Pin the action to an immutable commit for reproducible CI runs.
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
 
+      # Install exactly the dependencies recorded in uv.lock.
+      # --dev also installs the development tools required by CI.
       - name: Install backend dependencies
         working-directory: backend
-        # --locked ensures CI uses exactly the dependencies recorded in uv.lock.
         run: uv sync --locked --dev
 
+      # Bring the test database schema to the current migration head
+      # before executing backend integration tests.
       - name: Run database migrations
         working-directory: backend
-        # Create/update the database schema before running integration tests.
         run: uv run alembic upgrade head
 
+      # Execute the backend test suite against the CI PostgreSQL service.
       - name: Run backend tests
         working-directory: backend
         run: uv run pytest
 
+      # Run static analysis and linting for the Python backend.
       - name: Run backend quality checks
         working-directory: backend
         run: uv run ruff check .
 
-      # Frontend CI Environment
-      # Prepare the Node.js environment and install frontend dependencies
-      # before executing frontend validation checks.
+      # Start the backend locally so frontend integration tests can
+      # communicate with the real API instead of a mocked server.
+      - name: Start backend service
+        working-directory: backend
+        run: |
+          uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
+      # Wait for the backend health endpoint before running frontend
+      # integration tests. This prevents race conditions during startup.
+      - name: Wait for backend availability
+        run: |
+          for i in {1..30}; do
+            if curl --fail http://localhost:8000/health; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Backend did not become available"
+          exit 1
+
+      # Set up the Node.js environment used by the frontend.
+      # The npm cache is based on the committed lockfile for reproducibility.
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
@@ -76,8 +115,37 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Install the exact frontend dependency versions from package-lock.json.
+      # npm ci also ensures the lockfile and package.json remain consistent.
       - name: Install frontend dependencies
         working-directory: frontend
-        # npm ci installs exactly the versions stored in package-lock.json.
-        # This ensures reproducible frontend CI environments.
         run: npm ci
+
+      # Validate TypeScript configuration and types without producing
+      # a production build.
+      - name: Run frontend typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      # Check the frontend for ESLint violations.
+      - name: Run frontend lint
+        working-directory: frontend
+        run: npm run lint
+
+      # Ensure the frontend follows the repository's Prettier configuration.
+      # This keeps formatting consistent across contributors and CI.
+      - name: Check frontend formatting
+        working-directory: frontend
+        run: npm run format:check
+
+      # Run frontend unit and integration tests.
+      # VITE_API_URL points to the backend running on this CI runner.
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test
+
+      # Verify that the frontend can be compiled successfully for production.
+      # The same API configuration is available through the job environment.
+      - name: Build frontend application
+        working-directory: frontend
+        run: npm run build
