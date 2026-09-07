@@ -91,15 +91,11 @@ describe('apiClient', () => {
         }),
     });
 
-    await expect(apiClient('/accounts')).rejects.toThrow(
-      'Invalid request',
-    );
+    await expect(apiClient('/accounts')).rejects.toThrow('Invalid request');
   });
 
   it('throws a connection error when the api is unreachable', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(
-      new Error(),
-    );
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error());
 
     await expect(apiClient('/accounts')).rejects.toThrow(
       'Unable to connect to API',

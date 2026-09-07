@@ -3,7 +3,5 @@
   "compilerOptions": {
     "types": ["vite/client", "vitest/globals"]
   },
-  "include": [
-    "tests"
-  ]
+  "include": ["tests"]
 }
