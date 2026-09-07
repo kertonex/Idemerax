@@ -17,6 +17,10 @@ jobs:
       DATABASE_USER: test_user
       DATABASE_PASSWORD: test_password
 
+      # The frontend API client reads this variable via Vite.
+      # The backend runs locally on the same GitHub Actions runner.
+      VITE_API_URL: http://localhost:8000
+
     services:
       # Provide a PostgreSQL instance so database integration tests
       # run against the same database type used by the application.
