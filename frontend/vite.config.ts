@@ -10,5 +10,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './tests/setup.ts',
     globals: true,
+
+    // Collect frontend test coverage without enforcing a minimum threshold.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'cobertura'],
+    },
   },
 });

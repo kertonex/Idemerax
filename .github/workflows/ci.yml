@@ -161,6 +161,20 @@ jobs:
         working-directory: frontend
         run: npm run format:check
 
+      # Run frontend unit and integration tests with coverage collection.
+      # Coverage is generated in Cobertura format by the Vitest configuration.
+      - name: Run frontend tests with coverage
+        working-directory: frontend
+        run: npm run test -- --coverage
+
+      # Upload the frontend Cobertura coverage report as a GitHub Actions artifact.
+      # Coverage is available from the workflow run without enforcing a threshold.
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/cobertura-coverage.xml
+
       # Verify that the frontend can be compiled successfully for production.
       # The same API configuration is available through the job environment.
       - name: Build frontend application
