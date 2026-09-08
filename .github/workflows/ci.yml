@@ -188,6 +188,12 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      # Build the frontend Docker image to verify that the frontend
+      # Dockerfile and build context remain valid.
+      # The image is built for CI validation only and is not pushed.
+      - name: Build frontend Docker image
+        run: docker build -t idemerax-frontend:ci ./frontend
+
       # Read the backend and frontend Cobertura reports and create or update
       # a single coverage comment on the pull request.
       - name: Report coverage in pull request
