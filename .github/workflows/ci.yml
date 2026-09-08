@@ -13,6 +13,7 @@ jobs:
     # Allow the workflow to read the repository and upload coverage artifacts.
     permissions:
       contents: read
+      pull-requests: write
 
 
 
@@ -180,3 +181,46 @@ jobs:
       - name: Build frontend application
         working-directory: frontend
         run: npm run build
+
+      # Read the backend and frontend Cobertura reports and create or update
+      # a single coverage comment on the pull request.
+      - name: Report coverage in pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          def coverage(path):
+              root = ET.parse(path).getroot()
+              return float(root.attrib["line-rate"]) * 100
+
+          backend = coverage("backend/coverage.xml")
+          frontend = coverage("frontend/coverage/cobertura-coverage.xml")
+
+          with open("/tmp/coverage.md", "w") as f:
+              f.write("<!-- coverage-report -->\n")
+              f.write("## 📊 Code Coverage\n\n")
+              f.write("| Component | Coverage |\n")
+              f.write("|-----------|----------|\n")
+              f.write(f"| Backend   | {backend:.2f}% |\n")
+              f.write(f"| Frontend  | {frontend:.2f}% |\n\n")
+              f.write("> Coverage is reported for visibility only. No minimum threshold is enforced.\n")
+          PY
+
+          existing_comment=$(gh api \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --paginate \
+            --jq '.[] | select(.body | contains("<!-- coverage-report -->")) | .id' \
+            | head -n 1)
+
+          if [ -n "$existing_comment" ]; then
+            gh api \
+              --method PATCH \
+              "repos/${{ github.repository }}/issues/comments/${existing_comment}" \
+              -f body="$(cat /tmp/coverage.md)"
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" \
+              --body-file /tmp/coverage.md
+          fi
