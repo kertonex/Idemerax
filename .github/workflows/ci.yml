@@ -10,6 +10,13 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # Allow the workflow to read the repository and upload coverage artifacts.
+    permissions:
+      contents: read
+      pull-requests: write
+
+
+
     # Shared environment configuration for the isolated CI environment.
     # These values are test-only credentials and must never contain
     # production secrets.
@@ -74,15 +81,32 @@ jobs:
         working-directory: backend
         run: uv run alembic upgrade head
 
-      # Execute the backend test suite against the CI PostgreSQL service.
-      - name: Run backend tests
+      # Execute the backend test suite with coverage collection enabled.
+      # Coverage data is generated during the same test execution to keep
+      # the reported metrics aligned with the CI test results.
+      - name: Run backend tests with coverage
         working-directory: backend
-        run: uv run pytest
+        run: uv run coverage run -m pytest
+
+      # Convert the collected coverage data into a Cobertura XML report.
+      # The XML format allows coverage information to be consumed by
+      # reporting tools and CI integrations.
+      - name: Generate backend coverage report
+        working-directory: backend
+        run: uv run coverage xml
 
       # Run static analysis and linting for the Python backend.
       - name: Run backend quality checks
         working-directory: backend
         run: uv run ruff check .
+
+      # Upload the backend Cobertura coverage report as a GitHub Actions artifact.
+      # Coverage is available from the workflow run without enforcing a threshold.
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
 
       # Start the backend locally so frontend integration tests can
       # communicate with the real API instead of a mocked server.
@@ -138,14 +162,65 @@ jobs:
         working-directory: frontend
         run: npm run format:check
 
-      # Run frontend unit and integration tests.
-      # VITE_API_URL points to the backend running on this CI runner.
-      - name: Run frontend tests
+      # Run frontend unit and integration tests with coverage collection.
+      # Coverage is generated in Cobertura format by the Vitest configuration.
+      - name: Run frontend tests with coverage
         working-directory: frontend
-        run: npm run test
+        run: npm run test -- --coverage
+
+      # Upload the frontend Cobertura coverage report as a GitHub Actions artifact.
+      # Coverage is available from the workflow run without enforcing a threshold.
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/cobertura-coverage.xml
 
       # Verify that the frontend can be compiled successfully for production.
       # The same API configuration is available through the job environment.
       - name: Build frontend application
         working-directory: frontend
         run: npm run build
+
+      # Read the backend and frontend Cobertura reports and create or update
+      # a single coverage comment on the pull request.
+      - name: Report coverage in pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          def coverage(path):
+              root = ET.parse(path).getroot()
+              return float(root.attrib["line-rate"]) * 100
+
+          backend = coverage("backend/coverage.xml")
+          frontend = coverage("frontend/coverage/cobertura-coverage.xml")
+
+          with open("/tmp/coverage.md", "w") as f:
+              f.write("<!-- coverage-report -->\n")
+              f.write("## 📊 Code Coverage\n\n")
+              f.write("| Component | Coverage |\n")
+              f.write("|-----------|----------|\n")
+              f.write(f"| Backend   | {backend:.2f}% |\n")
+              f.write(f"| Frontend  | {frontend:.2f}% |\n\n")
+              f.write("> Coverage is reported for visibility only. No minimum threshold is enforced.\n")
+          PY
+
+          existing_comment=$(gh api \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --paginate \
+            --jq '.[] | select(.body | contains("<!-- coverage-report -->")) | .id' \
+            | head -n 1)
+
+          if [ -n "$existing_comment" ]; then
+            gh api \
+              --method PATCH \
+              "repos/${{ github.repository }}/issues/comments/${existing_comment}" \
+              -f body="$(cat /tmp/coverage.md)"
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" \
+              --body-file /tmp/coverage.md
+          fi
