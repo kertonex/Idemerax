@@ -108,6 +108,12 @@ jobs:
           name: backend-coverage
           path: backend/coverage.xml
 
+      # Build the backend Docker image to verify that the backend
+      # Dockerfile and build context remain valid.
+      # The image is built for CI validation only and is not pushed.
+      - name: Build backend Docker image
+        run: docker build -t idemerax-backend:ci ./backend
+
       # Start the backend locally so frontend integration tests can
       # communicate with the real API instead of a mocked server.
       - name: Start backend service
