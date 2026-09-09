@@ -54,8 +54,19 @@ jobs:
 
     steps:
       # Check out the exact repository revision that triggered the workflow.
+      # Full history is required by Gitleaks for repository-wide secret scanning.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Scan the repository for accidentally committed secrets.
+      # The scan checks the repository history for passwords, API keys,
+      # tokens, and other potentially exposed credentials.
+      - name: Run secret scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Use the Python version defined by the repository instead of
       # duplicating the version inside the workflow configuration.
