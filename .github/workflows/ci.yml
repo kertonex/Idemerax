@@ -290,3 +290,38 @@ jobs:
             gh pr comment "${{ github.event.pull_request.number }}" \
               --body-file /tmp/coverage.md
           fi
+
+  # Run CodeQL security analysis for the backend and frontend source code.
+  # Each language is analyzed independently and reported separately in GitHub.
+  codeql:
+    name: CodeQL security scanning
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - python
+          - javascript-typescript
+
+    steps:
+      # Check out the repository revision that triggered the workflow.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Initialize CodeQL for the selected source language.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      # Analyze the source code and upload the security results
+      # to GitHub's code scanning interface.
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
