@@ -100,6 +100,12 @@ jobs:
         working-directory: backend
         run: uv run ruff check .
 
+      # Run Bandit security analysis against the Python backend.
+      # The scan checks for common security issues in Python code.
+      - name: Run backend security scan
+        working-directory: backend
+        run: uv run bandit -r app
+
       # Upload the backend Cobertura coverage report as a GitHub Actions artifact.
       # Coverage is available from the workflow run without enforcing a threshold.
       - name: Upload backend coverage
