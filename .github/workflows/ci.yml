@@ -15,8 +15,6 @@ jobs:
       contents: read
       pull-requests: write
 
-
-
     # Shared environment configuration for the isolated CI environment.
     # These values are test-only credentials and must never contain
     # production secrets.
@@ -67,6 +65,20 @@ jobs:
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Scan project dependencies for known vulnerabilities.
+      # Only HIGH and CRITICAL vulnerabilities with an available fix
+      # fail the CI pipeline.
+      - name: Scan project dependencies
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
       # Use the Python version defined by the repository instead of
       # duplicating the version inside the workflow configuration.
@@ -130,6 +142,19 @@ jobs:
       # The image is built for CI validation only and is not pushed.
       - name: Build backend Docker image
         run: docker build -t idemerax-backend:ci ./backend
+
+      # Scan the complete backend Docker image.
+      # This checks the actual runtime image, including the base OS,
+      # Python runtime, installed Python packages and other binaries.
+      - name: Scan backend Docker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: idemerax-backend:ci
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
       # Start the backend locally so frontend integration tests can
       # communicate with the real API instead of a mocked server.
@@ -210,6 +235,18 @@ jobs:
       # The image is built for CI validation only and is not pushed.
       - name: Build frontend Docker image
         run: docker build -t idemerax-frontend:ci ./frontend
+
+      # Scan the complete frontend Docker image.
+      # This checks the actual nginx runtime image and its installed packages.
+      - name: Scan frontend Docker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: idemerax-frontend:ci
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
       # Read the backend and frontend Cobertura reports and create or update
       # a single coverage comment on the pull request.
