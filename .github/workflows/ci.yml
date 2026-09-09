@@ -15,8 +15,6 @@ jobs:
       contents: read
       pull-requests: write
 
-
-
     # Shared environment configuration for the isolated CI environment.
     # These values are test-only credentials and must never contain
     # production secrets.
@@ -54,8 +52,33 @@ jobs:
 
     steps:
       # Check out the exact repository revision that triggered the workflow.
+      # Full history is required by Gitleaks for repository-wide secret scanning.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Scan the repository for accidentally committed secrets.
+      # The scan checks the repository history for passwords, API keys,
+      # tokens, and other potentially exposed credentials.
+      - name: Run secret scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Scan project dependencies for known vulnerabilities.
+      # Only HIGH and CRITICAL vulnerabilities with an available fix
+      # fail the CI pipeline.
+      - name: Scan project dependencies
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
       # Use the Python version defined by the repository instead of
       # duplicating the version inside the workflow configuration.
@@ -100,6 +123,12 @@ jobs:
         working-directory: backend
         run: uv run ruff check .
 
+      # Run Bandit security analysis against the Python backend.
+      # The scan checks for common security issues in Python code.
+      - name: Run backend security scan
+        working-directory: backend
+        run: uv run bandit -r app
+
       # Upload the backend Cobertura coverage report as a GitHub Actions artifact.
       # Coverage is available from the workflow run without enforcing a threshold.
       - name: Upload backend coverage
@@ -113,6 +142,19 @@ jobs:
       # The image is built for CI validation only and is not pushed.
       - name: Build backend Docker image
         run: docker build -t idemerax-backend:ci ./backend
+
+      # Scan the complete backend Docker image.
+      # This checks the actual runtime image, including the base OS,
+      # Python runtime, installed Python packages and other binaries.
+      - name: Scan backend Docker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: idemerax-backend:ci
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
 
       # Start the backend locally so frontend integration tests can
       # communicate with the real API instead of a mocked server.
@@ -194,6 +236,18 @@ jobs:
       - name: Build frontend Docker image
         run: docker build -t idemerax-frontend:ci ./frontend
 
+      # Scan the complete frontend Docker image.
+      # This checks the actual nginx runtime image and its installed packages.
+      - name: Scan frontend Docker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: idemerax-frontend:ci
+          scanners: vuln
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
       # Read the backend and frontend Cobertura reports and create or update
       # a single coverage comment on the pull request.
       - name: Report coverage in pull request
@@ -236,3 +290,38 @@ jobs:
             gh pr comment "${{ github.event.pull_request.number }}" \
               --body-file /tmp/coverage.md
           fi
+
+  # Run CodeQL security analysis for the backend and frontend source code.
+  # Each language is analyzed independently and reported separately in GitHub.
+  codeql:
+    name: CodeQL security scanning
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - python
+          - javascript-typescript
+
+    steps:
+      # Check out the repository revision that triggered the workflow.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Initialize CodeQL for the selected source language.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      # Analyze the source code and upload the security results
+      # to GitHub's code scanning interface.
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
