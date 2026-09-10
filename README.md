@@ -1,5 +1,8 @@
 # Idemerax
 
+[![CI · Quality & Security](https://img.shields.io/github/actions/workflow/status/kertonex/Idemerax/ci.yml?branch=main&label=CI%20%C2%B7%20Quality%20%26%20Security&logo=github)](https://github.com/kertonex/Idemerax/actions/workflows/ci.yml)
+
+
 Idemerax is a full-stack transaction processing platform inspired by financial systems. The project explores distributed reliability challenges with a focus on data integrity, transaction consistency, idempotency, fault tolerance, and recovery from unreliable networks.
 
 ---
