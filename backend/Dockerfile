@@ -15,6 +15,11 @@ FROM python:3.14-slim AS runtime
 
 WORKDIR /app
 
+# Apply the latest available security updates to the base image.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/app /app/app
 
