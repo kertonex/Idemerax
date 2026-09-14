@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 import { getHealth } from '../shared/api/health';
+import LoginPage from '../pages/LoginPage';
 
 function DashboardPage() {
   useEffect(() => {
@@ -33,6 +34,8 @@ function SettingsPage() {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/accounts" element={<AccountsPage />} />
