@@ -6,17 +6,32 @@ import { useAuth } from '../context/useAuth';
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { setAccessToken } = useAuth();
 
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const response = await login({
-      email,
-      password,
-    });
+    setError(null);
+    setIsLoading(true);
 
-    setAccessToken(response.access_token);
+    try {
+      const response = await login({
+        email,
+        password,
+      });
+
+      setAccessToken(response.access_token);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to sign in. Please try again.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -73,11 +88,18 @@ function LoginForm() {
         </div>
       </div>
 
+      {error && (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
+
       <button
         type="submit"
-        className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+        disabled={isLoading}
+        className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Sign in
+        {isLoading ? 'Signing in...' : 'Sign in'}
       </button>
     </form>
   );
