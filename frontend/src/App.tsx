@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router';
 
 import AppShell from './components/layout/AppShell';
+import { AuthProvider } from './features/authentication/context/AuthProvider';
 import AppRoutes from './routes/AppRoutes';
 
 function App() {
@@ -18,4 +19,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}

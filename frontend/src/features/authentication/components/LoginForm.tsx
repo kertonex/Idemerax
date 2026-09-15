@@ -1,18 +1,22 @@
 import { useState } from 'react';
 
 import { login } from '../api/authentication';
+import { useAuth } from '../context/useAuth';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { setAccessToken } = useAuth();
 
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    await login({
+    const response = await login({
       email,
       password,
     });
+
+    setAccessToken(response.access_token);
   }
 
   return (
