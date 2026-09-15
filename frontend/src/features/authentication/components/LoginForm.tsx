@@ -1,11 +1,18 @@
 import { useState } from 'react';
 
+import { login } from '../api/authentication';
+
 function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    await login({
+      email,
+      password,
+    });
   }
 
   return (
