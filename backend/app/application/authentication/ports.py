@@ -9,3 +9,7 @@ class UserRepositoryPort(Protocol):
     async def get_by_email(self, email: str) -> User | None:
         """Return a user by email address."""
         ...
+
+    async def create(self, email: str, password_hash: str) -> User:
+        """Create and return a new user."""
+        ...

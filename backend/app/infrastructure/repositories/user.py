@@ -23,3 +23,15 @@ class UserRepository:
             select(User).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def create(self, email: str, password_hash: str) -> User:
+        """Create and return a new user."""
+        user = User(
+            email=email,
+            password_hash=password_hash,
+        )
+
+        self.session.add(user)
+        await self.session.flush()
+
+        return user
