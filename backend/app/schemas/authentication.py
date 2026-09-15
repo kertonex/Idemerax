@@ -6,3 +6,12 @@ class LoginRequest(BaseModel):
 
     email: EmailStr
     password: str
+
+
+class AuthenticatedUserResponse(BaseModel):
+    """Represent the public data of an authenticated user."""
+
+    id: int
+    email: EmailStr
+    role: str
+    is_active: bool
