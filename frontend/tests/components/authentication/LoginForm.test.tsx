@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -33,8 +33,17 @@ describe('LoginForm', () => {
     expect(passwordInput).toHaveValue('correct-password');
   });
 
-  it('does not submit the form', async () => {
+  it('submits login credentials to the api', async () => {
     const user = userEvent.setup();
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          access_token: 'test-token',
+          token_type: 'bearer',
+        }),
+    });
 
     render(<LoginForm />);
 
@@ -42,8 +51,16 @@ describe('LoginForm', () => {
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(screen.getByLabelText('Email')).toHaveValue('user@example.com');
-    expect(screen.getByLabelText('Password')).toHaveValue('correct-password');
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/auth/login',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'user@example.com',
+          password: 'correct-password',
+        }),
+      }),
+    );
   });
 
   it('requires an email address', () => {
