@@ -2,18 +2,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 import LoginForm from '../../../src/features/authentication/components/LoginForm';
+
+function renderLoginForm() {
+  return render(
+    <AuthProvider>
+      <LoginForm />
+    </AuthProvider>,
+  );
+}
 
 describe('LoginForm', () => {
   it('renders email and password fields', () => {
-    render(<LoginForm />);
+    renderLoginForm();
 
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
   });
 
   it('renders the sign in button', () => {
-    render(<LoginForm />);
+    renderLoginForm();
 
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
   });
@@ -21,7 +30,7 @@ describe('LoginForm', () => {
   it('allows entering email and password', async () => {
     const user = userEvent.setup();
 
-    render(<LoginForm />);
+    renderLoginForm();
 
     const emailInput = screen.getByLabelText('Email');
     const passwordInput = screen.getByLabelText('Password');
@@ -45,7 +54,7 @@ describe('LoginForm', () => {
         }),
     });
 
-    render(<LoginForm />);
+    renderLoginForm();
 
     await user.type(screen.getByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -64,13 +73,13 @@ describe('LoginForm', () => {
   });
 
   it('requires an email address', () => {
-    render(<LoginForm />);
+    renderLoginForm();
 
     expect(screen.getByLabelText('Email')).toBeRequired();
   });
 
   it('requires a password', () => {
-    render(<LoginForm />);
+    renderLoginForm();
 
     expect(screen.getByLabelText('Password')).toBeRequired();
   });

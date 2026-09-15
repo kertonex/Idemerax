@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { AuthProvider } from '../../src/features/authentication/context/AuthProvider';
 import LoginPage from '../../src/pages/LoginPage';
+
+function renderLoginPage() {
+  return render(
+    <AuthProvider>
+      <LoginPage />
+    </AuthProvider>,
+  );
+}
 
 describe('LoginPage', () => {
   it('renders the Idemerax branding', () => {
-    render(<LoginPage />);
+    renderLoginPage();
 
     expect(screen.getByText('Idemerax')).toBeInTheDocument();
   });
 
   it('renders the login form', () => {
-    render(<LoginPage />);
+    renderLoginPage();
 
     expect(
       screen.getByRole('heading', { name: 'Sign in' }),
