@@ -3,7 +3,11 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.security import decode_access_token, hash_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+)
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
 from app.main import app
@@ -148,3 +152,92 @@ def test_login_rejects_missing_password() -> None:
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_get_current_user_returns_authenticated_user() -> None:
+    """Return the authenticated user for a valid access token."""
+    email = f"me-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.commit()
+        user_id = user.id
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data == {
+        "id": user_id,
+        "email": email,
+        "role": "USER",
+        "is_active": True,
+    }
+    assert "password_hash" not in data
+
+
+def test_get_current_user_rejects_missing_token() -> None:
+    """Reject requests without an access token."""
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
+
+
+def test_get_current_user_rejects_invalid_token() -> None:
+    """Reject requests with an invalid access token."""
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_get_current_user_rejects_unknown_user() -> None:
+    """Reject valid tokens for users that do not exist."""
+    access_token = create_access_token("999999999")
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_get_current_user_rejects_inactive_user() -> None:
+    """Reject valid tokens for inactive users."""
+    email = f"inactive-me-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+            is_active=False,
+        )
+        session.add(user)
+        await session.commit()
+        user_id = user.id
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 401
