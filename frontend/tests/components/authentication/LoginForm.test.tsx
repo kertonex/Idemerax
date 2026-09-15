@@ -72,6 +72,59 @@ describe('LoginForm', () => {
     );
   });
 
+  it('shows a loading state while signing in', async () => {
+    const user = userEvent.setup();
+
+    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+
+    renderLoginForm();
+
+    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Signing in...' }),
+    ).toBeDisabled();
+  });
+
+  it('shows an error when login fails', async () => {
+    const user = userEvent.setup();
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      json: () =>
+        Promise.resolve({
+          detail: 'Invalid credentials.',
+        }),
+    });
+
+    renderLoginForm();
+
+    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(screen.getByLabelText('Password'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials.');
+    expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
+  });
+
+  it('shows an error when the api cannot be reached', async () => {
+    const user = userEvent.setup();
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    renderLoginForm();
+
+    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Unable to connect to API',
+    );
+  });
+
   it('requires an email address', () => {
     renderLoginForm();
 
