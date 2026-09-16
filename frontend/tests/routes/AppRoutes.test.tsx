@@ -26,13 +26,15 @@ function renderRoutes(initialPath: string, authState: AuthContextValue) {
 const unauthenticatedState: AuthContextValue = {
   accessToken: null,
   isAuthenticated: false,
+  isLoading: false,
   setAccessToken: vi.fn(),
   clearAccessToken: vi.fn(),
 };
 
 const authenticatedState: AuthContextValue = {
-  accessToken: 'test-access-token',
+  accessToken: 'test-token',
   isAuthenticated: true,
+  isLoading: false,
   setAccessToken: vi.fn(),
   clearAccessToken: vi.fn(),
 };

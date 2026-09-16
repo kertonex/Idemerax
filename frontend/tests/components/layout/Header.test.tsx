@@ -1,16 +1,17 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import Header from '../../../src/components/layout/Header';
 import {
   AuthContext,
   type AuthContextValue,
 } from '../../../src/features/authentication/context/AuthContext';
-import Header from '../../../src/components/layout/Header';
 
 describe('Header', () => {
   it('renders the sign out button', () => {
     const authState: AuthContextValue = {
-      accessToken: 'test-access-token',
+      accessToken: 'test-token',
+      isLoading: false,
       isAuthenticated: true,
       setAccessToken: vi.fn(),
       clearAccessToken: vi.fn(),
@@ -33,6 +34,7 @@ describe('Header', () => {
     const authState: AuthContextValue = {
       accessToken: 'test-access-token',
       isAuthenticated: true,
+      isLoading: false,
       setAccessToken: vi.fn(),
       clearAccessToken,
     };
