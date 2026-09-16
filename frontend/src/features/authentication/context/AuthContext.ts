@@ -7,6 +7,9 @@ export interface AuthContextValue {
   /** Whether the user is currently authenticated. */
   isAuthenticated: boolean;
 
+  /** Whether authentication state is being restored. */
+  isLoading: boolean;
+
   /** Set the current access token after successful authentication. */
   setAccessToken: (accessToken: string) => void;
 

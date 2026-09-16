@@ -32,6 +32,20 @@ interface RegisterResponse {
   token_type: string;
 }
 
+interface AuthenticatedUser {
+  /** User ID. */
+  id: number;
+
+  /** User email address. */
+  email: string;
+
+  /** User role. */
+  role: string;
+
+  /** Whether the user account is active. */
+  is_active: boolean;
+}
+
 /**
  * Authenticate a user through the backend authentication API.
  *
@@ -57,5 +71,21 @@ export function register(
   return apiClient<RegisterResponse>('/auth/register', {
     method: 'POST',
     body: credentials,
+  });
+}
+
+/**
+ * Get the currently authenticated user through the backend authentication API.
+ *
+ * @param accessToken - JWT access token used for authentication.
+ * @returns The currently authenticated user.
+ */
+export function getCurrentUser(
+  accessToken: string,
+): Promise<AuthenticatedUser> {
+  return apiClient<AuthenticatedUser>('/auth/me', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 }
