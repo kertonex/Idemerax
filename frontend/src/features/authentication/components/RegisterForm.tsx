@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+
+import { register } from '../api/authentication';
+import { useAuth } from '../context/useAuth';
 
 /** Render the user registration form. */
 function RegisterForm() {
@@ -7,6 +10,9 @@ function RegisterForm() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const navigate = useNavigate();
+  const { setAccessToken } = useAuth();
 
   /** Handle registration form submission. */
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
@@ -16,7 +22,19 @@ function RegisterForm() {
     setIsLoading(true);
 
     try {
-      // Registration API integration will be added in the next step.
+      const response = await register({
+        email,
+        password,
+      });
+
+      setAccessToken(response.access_token);
+      navigate('/dashboard');
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create account. Please try again.',
+      );
     } finally {
       setIsLoading(false);
     }
