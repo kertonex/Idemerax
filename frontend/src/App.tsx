@@ -6,9 +6,10 @@ import AppRoutes from './routes/AppRoutes';
 
 function App() {
   const location = useLocation();
-  const isLoginPage = location.pathname === '/login';
+  const isAuthenticationPage =
+    location.pathname === '/login' || location.pathname === '/register';
 
-  if (isLoginPage) {
+  if (isAuthenticationPage) {
     return <AppRoutes />;
   }
 

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { useAuth } from '../features/authentication/context/useAuth';
 import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
 import { getHealth } from '../shared/api/health';
 
 function DashboardPage() {
@@ -61,6 +62,15 @@ function AppRoutes() {
         element={
           <PublicRoute>
             <LoginPage />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <RegisterPage />
           </PublicRoute>
         }
       />

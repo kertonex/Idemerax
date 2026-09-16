@@ -1,18 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import { login } from '../api/authentication';
-import { useAuth } from '../context/useAuth';
-
-/** Render the user login form. */
-function LoginForm() {
+/** Render the user registration form. */
+function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setAccessToken } = useAuth();
 
-  /** Handle login form submission. */
+  /** Handle registration form submission. */
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -20,18 +16,7 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await login({
-        email,
-        password,
-      });
-
-      setAccessToken(response.access_token);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to sign in. Please try again.',
-      );
+      // Registration API integration will be added in the next step.
     } finally {
       setIsLoading(false);
     }
@@ -43,9 +28,9 @@ function LoginForm() {
       className="w-full max-w-md space-y-6 rounded-xl border border-slate-800 bg-slate-900 p-8 shadow-xl"
     >
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-white">Sign in</h1>
+        <h1 className="text-2xl font-semibold text-white">Create account</h1>
         <p className="text-sm text-slate-400">
-          Sign in to access your Idemerax account.
+          Create your Idemerax account with your email and password.
         </p>
       </div>
 
@@ -82,7 +67,7 @@ function LoginForm() {
             id="password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
@@ -102,20 +87,20 @@ function LoginForm() {
         disabled={isLoading}
         className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isLoading ? 'Signing in...' : 'Sign in'}
+        {isLoading ? 'Creating account...' : 'Create account'}
       </button>
 
       <p className="text-center text-sm text-slate-400">
-        Don't have an account?{' '}
+        Already have an account?{' '}
         <Link
-          to="/register"
+          to="/login"
           className="font-medium text-white transition hover:text-slate-300"
         >
-          Sign up
+          Sign in
         </Link>
       </p>
     </form>
   );
 }
 
-export default LoginForm;
+export default RegisterForm;
