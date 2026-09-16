@@ -8,6 +8,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    """Represent the credentials required for user registration."""
+
+    email: EmailStr
+    password: str
+
+
 class AuthenticatedUserResponse(BaseModel):
     """Represent the public data of an authenticated user."""
 

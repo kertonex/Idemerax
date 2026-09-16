@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from psycopg.errors import UniqueViolation
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.application.authentication.authenticate_user import (
     AuthenticateUser,
     AuthenticationError,
+)
+from app.application.authentication.register_user import (
+    RegisterUser,
+    RegistrationError,
 )
 from app.core.security import create_access_token
 from app.infrastructure.database.models.user import User
@@ -13,6 +19,7 @@ from app.infrastructure.repositories.user import UserRepository
 from app.schemas.authentication import (
     AuthenticatedUserResponse,
     LoginRequest,
+    RegisterRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -37,6 +44,41 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials.",
         ) from exc
+
+    access_token = create_access_token(str(user.id))
+
+    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    credentials: RegisterRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """Register a new user and return an access token."""
+    user_repository = UserRepository(session)
+    register_user = RegisterUser(user_repository)
+
+    try:
+        user = await register_user.execute(
+            email=credentials.email,
+            password=credentials.password,
+        )
+    except RegistrationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email address is already registered.",
+        ) from exc
+    except IntegrityError as exc:
+        await session.rollback()
+
+        if isinstance(exc.orig, UniqueViolation):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email address is already registered.",
+            ) from exc
+
+        raise
 
     access_token = create_access_token(str(user.id))
 
