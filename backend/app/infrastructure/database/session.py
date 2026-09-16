@@ -12,6 +12,12 @@ SessionFactory = async_sessionmaker(
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """Provide a database session and close it after use."""
+    """Provide a database session and commit successful transactions."""
     async with SessionFactory() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        else:
+            await session.commit()
