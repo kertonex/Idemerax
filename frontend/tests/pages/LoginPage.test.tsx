@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 
-import { AuthProvider } from '../../src/features/authentication/context/AuthProvider';
 import LoginPage from '../../src/pages/LoginPage';
+import { AuthProvider } from '../../src/features/authentication/context/AuthProvider';
 
+/** Render the login page with its required application providers. */
 function renderLoginPage() {
   return render(
-    <AuthProvider>
-      <LoginPage />
-    </AuthProvider>,
+    <MemoryRouter>
+      <AuthProvider>
+        <LoginPage />
+      </AuthProvider>
+    </MemoryRouter>,
   );
 }
 

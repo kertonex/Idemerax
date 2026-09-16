@@ -1,15 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 
-import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 import LoginForm from '../../../src/features/authentication/components/LoginForm';
+import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 
+/** Render the login form with its required application providers. */
 function renderLoginForm() {
   return render(
-    <AuthProvider>
-      <LoginForm />
-    </AuthProvider>,
+    <MemoryRouter>
+      <AuthProvider>
+        <LoginForm />
+      </AuthProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -135,5 +139,14 @@ describe('LoginForm', () => {
     renderLoginForm();
 
     expect(screen.getByLabelText('Password')).toBeRequired();
+  });
+
+  it('links to the registration page', () => {
+    renderLoginForm();
+
+    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
+      'href',
+      '/register',
+    );
   });
 });
