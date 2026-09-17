@@ -97,7 +97,7 @@ async def refresh_access_token(
     refresh_token: str | None = Cookie(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
-    """Renew an access token using a valid refresh session."""
+    """Renew an access token and rotate the refresh token."""
     if refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,14 +113,20 @@ async def refresh_access_token(
     )
 
     try:
-        access_token = await renew_access_token.execute(refresh_token)
+        access_token, new_refresh_token = await renew_access_token.execute(
+            refresh_token,
+        )
     except RefreshSessionError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh session.",
         ) from exc
 
-    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+    }  # nosec B105
 
 
 @router.get("/me", response_model=AuthenticatedUserResponse)

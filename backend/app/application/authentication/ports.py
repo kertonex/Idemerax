@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Protocol
 
 from app.infrastructure.database.models.refresh_session import RefreshSession
@@ -28,4 +29,17 @@ class RefreshSessionRepositoryPort(Protocol):
         token_hash: str,
     ) -> RefreshSession | None:
         """Return a refresh session by token hash."""
+        ...
+
+    async def create(
+        self,
+        user_id: int,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> RefreshSession:
+        """Create and return a new refresh session."""
+        ...
+
+    async def delete(self, refresh_session_id: int) -> None:
+        """Delete a refresh session."""
         ...
