@@ -11,8 +11,10 @@ import pytest
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
+    create_refresh_token,
     decode_access_token,
     hash_password,
+    hash_refresh_token,
     verify_password,
 )
 
@@ -171,6 +173,72 @@ def test_verify_password_with_truncated_hash() -> None:
     truncated_hash = password_hash[:20]
 
     assert verify_password(password, truncated_hash) is False
+
+
+# ── Refresh tokens ───────────────────────────────────────────────────────────
+
+
+def test_create_refresh_token_returns_token() -> None:
+    """Verify that a refresh token is generated."""
+    token = create_refresh_token()
+
+    assert token
+    assert isinstance(token, str)
+
+
+def test_create_refresh_token_generates_unique_tokens() -> None:
+    """Verify that refresh tokens are unique."""
+    token_1 = create_refresh_token()
+    token_2 = create_refresh_token()
+
+    assert token_1 != token_2
+
+
+def test_create_refresh_token_has_expected_length() -> None:
+    """Verify that the refresh token has the expected length."""
+    token = create_refresh_token()
+
+    assert len(token) == 43
+
+
+def test_hash_refresh_token_returns_sha256_hash() -> None:
+    """Verify that a refresh token is hashed using SHA-256."""
+    token = create_refresh_token()
+
+    token_hash = hash_refresh_token(token)
+
+    assert len(token_hash) == 64
+    assert all(character in "0123456789abcdef" for character in token_hash)
+
+
+def test_hash_refresh_token_is_deterministic() -> None:
+    """Verify that the same refresh token always produces the same hash."""
+    token = create_refresh_token()
+
+    first_hash = hash_refresh_token(token)
+    second_hash = hash_refresh_token(token)
+
+    assert first_hash == second_hash
+
+
+def test_hash_refresh_token_generates_different_hashes_for_different_tokens() -> None:
+    """Verify that different refresh tokens produce different hashes."""
+    token_1 = create_refresh_token()
+    token_2 = create_refresh_token()
+
+    first_hash = hash_refresh_token(token_1)
+    second_hash = hash_refresh_token(token_2)
+
+    assert first_hash != second_hash
+
+
+def test_hash_refresh_token_does_not_return_plaintext_token() -> None:
+    """Verify that the refresh token is not stored as plaintext."""
+    token = create_refresh_token()
+
+    token_hash = hash_refresh_token(token)
+
+    assert token_hash != token
 
 
 # ── JWT access tokens ────────────────────────────────────────────────────────
@@ -353,7 +421,7 @@ def test_decode_access_token_rejects_unexpected_algorithm() -> None:
     payload = {
         "sub": "123",
         "iat": now,
-        "exp": now + timedelta(minutes=15),
+        "exp": now,
         "iss": settings.jwt_issuer,
         "aud": settings.jwt_audience,
     }
