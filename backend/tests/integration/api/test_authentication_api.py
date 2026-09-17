@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -8,9 +9,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.security import (
     create_access_token,
+    create_refresh_token,
     decode_access_token,
     hash_password,
+    hash_refresh_token,
 )
+from app.infrastructure.database.models.refresh_session import RefreshSession
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
 from app.main import app
@@ -395,3 +399,42 @@ def test_register_rejects_database_unique_violation() -> None:
     assert response.json() == {
         "detail": "Email address is already registered.",
     }
+
+
+@pytest.mark.anyio
+async def test_refresh_does_not_return_refresh_token_in_response() -> None:
+    """Do not expose the rotated refresh token in the response body."""
+    email = f"refresh-response-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+
+        refresh_session = RefreshSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_token),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+        )
+        session.add(refresh_session)
+        await session.commit()
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set(
+            "__Host-refresh_token",
+            refresh_token,
+        )
+
+        response = test_client.post("/auth/refresh")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["token_type"] == "bearer"
+    assert data["access_token"]
+    assert "refresh_token" not in data
