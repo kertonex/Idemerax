@@ -16,6 +16,10 @@ from app.application.authentication.renew_access_token import (
     RefreshSessionError,
     RenewAccessToken,
 )
+from app.application.authentication.revoke_refresh_session import (
+    RefreshSessionRevocationError,
+    RevokeRefreshSession,
+)
 from app.core.security import create_access_token
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import get_session
@@ -140,6 +144,32 @@ async def refresh_access_token(
         "access_token": access_token,
         "token_type": "bearer",
     }  # nosec B105
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    refresh_token: str | None = Cookie(
+        default=None,
+        alias=REFRESH_TOKEN_COOKIE,
+    ),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Revoke the refresh session and clear the refresh token cookie."""
+    if refresh_token is not None:
+        refresh_session_repository = RefreshSessionRepository(session)
+        revoke_refresh_session = RevokeRefreshSession(
+            refresh_session_repository,
+        )
+
+        try:
+            await revoke_refresh_session.execute(refresh_token)
+        except RefreshSessionRevocationError:
+            pass
+
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+    )
 
 
 @router.get("/me", response_model=AuthenticatedUserResponse)
