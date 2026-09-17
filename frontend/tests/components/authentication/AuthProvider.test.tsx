@@ -1,12 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getCurrentUser } from '../../../src/features/authentication/api/authentication';
+import {
+  getCurrentUser,
+  refreshAccessToken,
+} from '../../../src/features/authentication/api/authentication';
 import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 import { useAuth } from '../../../src/features/authentication/context/useAuth';
 
 vi.mock('../../../src/features/authentication/api/authentication', () => ({
   getCurrentUser: vi.fn(),
+  refreshAccessToken: vi.fn(),
 }));
 
 const ACCESS_TOKEN_STORAGE_KEY = 'idemerax_access_token';
@@ -29,17 +33,25 @@ describe('AuthProvider', () => {
     vi.clearAllMocks();
   });
 
-  it('starts unauthenticated when no access token is stored', () => {
+  it('starts unauthenticated when no access token is stored', async () => {
+    vi.mocked(refreshAccessToken).mockRejectedValue(
+      new Error('No refresh session'),
+    );
+
     render(
       <AuthProvider>
         <AuthState />
       </AuthProvider>,
     );
 
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+
     expect(screen.getByTestId('access-token')).toHaveTextContent('null');
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
-    expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
     expect(getCurrentUser).not.toHaveBeenCalled();
+    expect(refreshAccessToken).toHaveBeenCalledOnce();
   });
 
   it('restores authentication from a valid stored access token', async () => {
@@ -70,15 +82,57 @@ describe('AuthProvider', () => {
 
     expect(getCurrentUser).toHaveBeenCalledOnce();
     expect(getCurrentUser).toHaveBeenCalledWith(accessToken);
+    expect(refreshAccessToken).not.toHaveBeenCalled();
     expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBe(accessToken);
   });
 
-  it('clears an invalid stored access token', async () => {
+  it('refreshes authentication when the stored access token is invalid', async () => {
+    const expiredAccessToken = 'expired-access-token';
+    const refreshedAccessToken = 'refreshed-access-token';
+
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, expiredAccessToken);
+
+    vi.mocked(getCurrentUser).mockRejectedValue(new Error('Unauthorized'));
+
+    vi.mocked(refreshAccessToken).mockResolvedValue({
+      access_token: refreshedAccessToken,
+      token_type: 'bearer',
+    });
+
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    expect(screen.getByTestId('is-loading')).toHaveTextContent('true');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('access-token')).toHaveTextContent(
+      refreshedAccessToken,
+    );
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
+
+    expect(getCurrentUser).toHaveBeenCalledOnce();
+    expect(getCurrentUser).toHaveBeenCalledWith(expiredAccessToken);
+    expect(refreshAccessToken).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBe(
+      refreshedAccessToken,
+    );
+  });
+
+  it('clears authentication when the stored access token and refresh session are invalid', async () => {
     const accessToken = 'invalid-access-token';
 
     sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
 
     vi.mocked(getCurrentUser).mockRejectedValue(new Error('Unauthorized'));
+    vi.mocked(refreshAccessToken).mockRejectedValue(
+      new Error('Invalid refresh session'),
+    );
 
     render(
       <AuthProvider>
@@ -95,7 +149,9 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('access-token')).toHaveTextContent('null');
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
     expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBeNull();
+
     expect(getCurrentUser).toHaveBeenCalledWith(accessToken);
+    expect(refreshAccessToken).toHaveBeenCalledOnce();
   });
 
   it('keeps authentication loading while restoring a stored access token', () => {
@@ -115,5 +171,6 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('access-token')).toHaveTextContent(accessToken);
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
     expect(getCurrentUser).toHaveBeenCalledWith(accessToken);
+    expect(refreshAccessToken).not.toHaveBeenCalled();
   });
 });

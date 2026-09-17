@@ -1,11 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { logout } from '../../../src/features/authentication/api/authentication';
 import Header from '../../../src/components/layout/Header';
 import {
   AuthContext,
   type AuthContextValue,
 } from '../../../src/features/authentication/context/AuthContext';
+
+vi.mock('../../../src/features/authentication/api/authentication', () => ({
+  logout: vi.fn(),
+}));
 
 describe('Header', () => {
   it('renders the sign out button', () => {
@@ -28,8 +33,10 @@ describe('Header', () => {
     ).toBeInTheDocument();
   });
 
-  it('clears the access token when signing out', () => {
+  it('logs out and clears the access token when signing out', async () => {
     const clearAccessToken = vi.fn();
+
+    vi.mocked(logout).mockResolvedValue(undefined);
 
     const authState: AuthContextValue = {
       accessToken: 'test-access-token',
@@ -47,6 +54,9 @@ describe('Header', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(clearAccessToken).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(logout).toHaveBeenCalledOnce();
+      expect(clearAccessToken).toHaveBeenCalledOnce();
+    });
   });
 });
