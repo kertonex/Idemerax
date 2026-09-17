@@ -438,3 +438,96 @@ async def test_refresh_does_not_return_refresh_token_in_response() -> None:
     assert data["token_type"] == "bearer"
     assert data["access_token"]
     assert "refresh_token" not in data
+
+
+@pytest.mark.anyio
+async def test_logout_revokes_refresh_session() -> None:
+    """Revoke the refresh session when the user logs out."""
+    email = f"logout-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+
+        refresh_session = RefreshSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_token),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+        )
+        session.add(refresh_session)
+        await session.commit()
+        refresh_session_id = refresh_session.id
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set(
+            "__Host-refresh_token",
+            refresh_token,
+        )
+
+        response = test_client.post("/auth/logout")
+
+    assert response.status_code == 204
+
+    async with SessionFactory() as session:
+        revoked_session = await session.get(
+            RefreshSession,
+            refresh_session_id,
+        )
+
+    assert revoked_session is None
+
+
+@pytest.mark.anyio
+async def test_logout_invalidates_refresh_token() -> None:
+    """Reject the refresh token after logout."""
+    email = f"logout-refresh-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+
+        refresh_session = RefreshSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_token),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+        )
+        session.add(refresh_session)
+        await session.commit()
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set(
+            "__Host-refresh_token",
+            refresh_token,
+        )
+
+        logout_response = test_client.post("/auth/logout")
+
+        test_client.cookies.set(
+            "__Host-refresh_token",
+            refresh_token,
+        )
+        refresh_response = test_client.post("/auth/refresh")
+
+    assert logout_response.status_code == 204
+    assert refresh_response.status_code == 401
+    assert refresh_response.json() == {
+        "detail": "Invalid refresh session.",
+    }
+
+
+def test_logout_without_refresh_token_succeeds() -> None:
+    """Allow logout when no refresh token cookie is present."""
+    with TestClient(app) as test_client:
+        response = test_client.post("/auth/logout")
+
+    assert response.status_code == 204
