@@ -8,6 +8,7 @@ from app.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
     from app.infrastructure.database.models.account import Account
+    from app.infrastructure.database.models.refresh_session import RefreshSession
 
 
 class User(Base):
@@ -56,3 +57,8 @@ class User(Base):
     accounts: Mapped[list["Account"]] = relationship(
         back_populates="user",
     )
+
+    refresh_sessions: Mapped[list["RefreshSession"]] = relationship(
+    cascade="all, delete-orphan",
+    back_populates="user",
+)
