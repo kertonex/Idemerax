@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +12,16 @@ from app.application.authentication.register_user import (
     RegisterUser,
     RegistrationError,
 )
+from app.application.authentication.renew_access_token import (
+    RefreshSessionError,
+    RenewAccessToken,
+)
 from app.core.security import create_access_token
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import get_session
+from app.infrastructure.repositories.refresh_session import (
+    RefreshSessionRepository,
+)
 from app.infrastructure.repositories.user import UserRepository
 from app.schemas.authentication import (
     AuthenticatedUserResponse,
@@ -81,6 +88,37 @@ async def register(
         raise
 
     access_token = create_access_token(str(user.id))
+
+    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+
+
+@router.post("/refresh")
+async def refresh_access_token(
+    refresh_token: str | None = Cookie(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """Renew an access token using a valid refresh session."""
+    if refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh session.",
+        )
+
+    refresh_session_repository = RefreshSessionRepository(session)
+    user_repository = UserRepository(session)
+
+    renew_access_token = RenewAccessToken(
+        refresh_session_repository=refresh_session_repository,
+        user_repository=user_repository,
+    )
+
+    try:
+        access_token = await renew_access_token.execute(refresh_token)
+    except RefreshSessionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh session.",
+        ) from exc
 
     return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
 
