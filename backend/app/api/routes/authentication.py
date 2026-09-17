@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,8 @@ from app.schemas.authentication import (
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+REFRESH_TOKEN_COOKIE = "__Host-refresh_token"  # nosec B105
 
 
 @router.post("/login")
@@ -94,7 +96,11 @@ async def register(
 
 @router.post("/refresh")
 async def refresh_access_token(
-    refresh_token: str | None = Cookie(default=None),
+    response: Response,
+    refresh_token: str | None = Cookie(
+        default=None,
+        alias=REFRESH_TOKEN_COOKIE,
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Renew an access token and rotate the refresh token."""
@@ -122,9 +128,16 @@ async def refresh_access_token(
             detail="Invalid refresh session.",
         ) from exc
 
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+        value=new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+
     return {
         "access_token": access_token,
-        "refresh_token": new_refresh_token,
         "token_type": "bearer",
     }  # nosec B105
 
