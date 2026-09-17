@@ -70,6 +70,7 @@ export async function apiClient<T>(
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...requestOptions,
+      credentials: 'include',
       headers,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +22,12 @@ from app.application.authentication.revoke_refresh_session import (
     RefreshSessionRevocationError,
     RevokeRefreshSession,
 )
-from app.core.security import create_access_token
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_refresh_token,
+)
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.refresh_session import (
@@ -41,6 +48,7 @@ REFRESH_TOKEN_COOKIE = "__Host-refresh_token"  # nosec B105
 @router.post("/login")
 async def login(
     credentials: LoginRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Authenticate a user and return an access token."""
@@ -59,6 +67,24 @@ async def login(
         ) from exc
 
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token()
+
+    refresh_session_repository = RefreshSessionRepository(session)
+
+    await refresh_session_repository.create(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh_token),
+        expires_at=datetime.now(UTC)
+        + timedelta(days=settings.refresh_session_expire_days),
+    )
+
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
 
     return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
 
@@ -66,6 +92,7 @@ async def login(
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     credentials: RegisterRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Register a new user and return an access token."""
@@ -94,6 +121,24 @@ async def register(
         raise
 
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token()
+
+    refresh_session_repository = RefreshSessionRepository(session)
+
+    await refresh_session_repository.create(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh_token),
+        expires_at=datetime.now(UTC)
+        + timedelta(days=settings.refresh_session_expire_days),
+    )
+
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
 
     return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
 
@@ -169,6 +214,7 @@ async def logout(
 
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE,
+        path="/",
     )
 
 

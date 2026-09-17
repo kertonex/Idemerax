@@ -28,6 +28,7 @@ function RegisterForm() {
       });
 
       setAccessToken(response.access_token);
+      localStorage.setItem('idemerax_auth', 'login');
       navigate('/dashboard');
     } catch (error) {
       setError(

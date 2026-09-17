@@ -8,7 +8,7 @@ interface LoginRequest {
   password: string;
 }
 
-interface LoginResponse {
+interface AuthTokenResponse {
   /** Signed JWT access token returned by the API. */
   access_token: string;
 
@@ -22,14 +22,6 @@ interface RegisterRequest {
 
   /** User password. */
   password: string;
-}
-
-interface RegisterResponse {
-  /** Signed JWT access token returned by the API. */
-  access_token: string;
-
-  /** Authentication scheme used for the access token. */
-  token_type: string;
 }
 
 interface AuthenticatedUser {
@@ -52,8 +44,8 @@ interface AuthenticatedUser {
  * @param credentials - User email and password.
  * @returns The access token returned by the authentication API.
  */
-export function login(credentials: LoginRequest): Promise<LoginResponse> {
-  return apiClient<LoginResponse>('/auth/login', {
+export function login(credentials: LoginRequest): Promise<AuthTokenResponse> {
+  return apiClient<AuthTokenResponse>('/auth/login', {
     method: 'POST',
     body: credentials,
   });
@@ -67,8 +59,8 @@ export function login(credentials: LoginRequest): Promise<LoginResponse> {
  */
 export function register(
   credentials: RegisterRequest,
-): Promise<RegisterResponse> {
-  return apiClient<RegisterResponse>('/auth/register', {
+): Promise<AuthTokenResponse> {
+  return apiClient<AuthTokenResponse>('/auth/register', {
     method: 'POST',
     body: credentials,
   });
@@ -87,5 +79,31 @@ export function getCurrentUser(
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+  });
+}
+
+/**
+ * Refresh the current access token through the authentication API.
+ *
+ * The refresh session is sent automatically through the secure HttpOnly
+ * refresh token cookie.
+ *
+ * @returns The new access token returned by the authentication API.
+ */
+export function refreshAccessToken(): Promise<AuthTokenResponse> {
+  return apiClient<AuthTokenResponse>('/auth/refresh', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Log out the current user through the authentication API.
+ *
+ * The backend revokes the refresh session and clears the
+ * refresh token cookie.
+ */
+export function logout(): Promise<void> {
+  return apiClient<void>('/auth/logout', {
+    method: 'POST',
   });
 }
