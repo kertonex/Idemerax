@@ -13,7 +13,7 @@ from app.infrastructure.database.models.user import User
 
 @pytest.fixture
 def user() -> User:
-    """Provide an active user for authentication tests."""
+    """Provide an active user."""
     return User(
         id=1,
         email="user@example.com",
@@ -24,7 +24,7 @@ def user() -> User:
 
 @pytest.fixture
 def refresh_session() -> RefreshSession:
-    """Provide a valid refresh session for authentication tests."""
+    """Provide a valid refresh session."""
     return RefreshSession(
         id=1,
         user_id=1,
@@ -46,7 +46,7 @@ def user_repository() -> AsyncMock:
 
 
 @pytest.fixture
-def renew_access_token(
+def renew_access_token_use_case(
     refresh_session_repository: AsyncMock,
     user_repository: AsyncMock,
 ) -> RenewAccessToken:
@@ -58,29 +58,38 @@ def renew_access_token(
 
 
 @pytest.mark.anyio
-async def test_renew_access_token_returns_new_access_token(
-    renew_access_token: RenewAccessToken,
+async def test_renew_access_token_returns_new_tokens(
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
     user_repository: AsyncMock,
     refresh_session: RefreshSession,
     user: User,
 ) -> None:
-    """Verify that a valid refresh session produces a new access token."""
+    """Verify that a valid refresh session produces new tokens."""
     refresh_session_repository.get_by_token_hash.return_value = refresh_session
     user_repository.get_by_id.return_value = user
 
-    with patch(
-        "app.application.authentication.renew_access_token.create_access_token",
-        return_value="new-access-token",
+    with (
+        patch(
+            "app.application.authentication.renew_access_token.create_access_token",
+            return_value="new-access-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.create_refresh_token",
+            return_value="new-refresh-token",
+        ),
     ):
-        access_token = await renew_access_token.execute("refresh-token")
+        access_token, refresh_token = await renew_access_token_use_case.execute(
+            "refresh-token",
+        )
 
     assert access_token == "new-access-token"
+    assert refresh_token == "new-refresh-token"
 
 
 @pytest.mark.anyio
 async def test_renew_access_token_hashes_refresh_token(
-    renew_access_token: RenewAccessToken,
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
     refresh_session: RefreshSession,
 ) -> None:
@@ -96,8 +105,12 @@ async def test_renew_access_token_hashes_refresh_token(
             "app.application.authentication.renew_access_token.create_access_token",
             return_value="new-access-token",
         ),
+        patch(
+            "app.application.authentication.renew_access_token.create_refresh_token",
+            return_value="new-refresh-token",
+        ),
     ):
-        await renew_access_token.execute("refresh-token")
+        await renew_access_token_use_case.execute("refresh-token")
 
     refresh_session_repository.get_by_token_hash.assert_awaited_once_with(
         "hashed-refresh-token",
@@ -105,8 +118,83 @@ async def test_renew_access_token_hashes_refresh_token(
 
 
 @pytest.mark.anyio
+async def test_renew_access_token_rotates_refresh_session(
+    renew_access_token_use_case: RenewAccessToken,
+    refresh_session_repository: AsyncMock,
+    user_repository: AsyncMock,
+    refresh_session: RefreshSession,
+    user: User,
+) -> None:
+    """Verify that the existing session is replaced with a new session."""
+    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    user_repository.get_by_id.return_value = user
+
+    with (
+        patch(
+            "app.application.authentication.renew_access_token.create_access_token",
+            return_value="new-access-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.create_refresh_token",
+            return_value="new-refresh-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.hash_refresh_token",
+            side_effect=[
+                "hashed-refresh-token",
+                "new-refresh-token-hash",
+            ],
+        ),
+    ):
+        await renew_access_token_use_case.execute("refresh-token")
+
+    refresh_session_repository.delete.assert_awaited_once_with(
+        refresh_session.id,
+    )
+    refresh_session_repository.create.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_renew_access_token_creates_new_refresh_session(
+    renew_access_token_use_case: RenewAccessToken,
+    refresh_session_repository: AsyncMock,
+    user_repository: AsyncMock,
+    refresh_session: RefreshSession,
+    user: User,
+) -> None:
+    """Verify that rotation stores the new refresh token hash."""
+    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    user_repository.get_by_id.return_value = user
+
+    with (
+        patch(
+            "app.application.authentication.renew_access_token.create_access_token",
+            return_value="new-access-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.create_refresh_token",
+            return_value="new-refresh-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.hash_refresh_token",
+            side_effect=[
+                "hashed-refresh-token",
+                "new-refresh-token-hash",
+            ],
+        ),
+    ):
+        await renew_access_token_use_case.execute("refresh-token")
+
+    refresh_session_repository.create.assert_awaited_once()
+    call_kwargs = refresh_session_repository.create.await_args.kwargs
+
+    assert call_kwargs["user_id"] == user.id
+    assert call_kwargs["token_hash"] == "new-refresh-token-hash"
+
+
+@pytest.mark.anyio
 async def test_renew_access_token_rejects_unknown_refresh_token(
-    renew_access_token: RenewAccessToken,
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
 ) -> None:
     """Verify that an unknown refresh token is rejected."""
@@ -116,12 +204,12 @@ async def test_renew_access_token_rejects_unknown_refresh_token(
         RefreshSessionError,
         match="Invalid refresh session.",
     ):
-        await renew_access_token.execute("unknown-refresh-token")
+        await renew_access_token_use_case.execute("unknown-refresh-token")
 
 
 @pytest.mark.anyio
 async def test_renew_access_token_rejects_expired_session(
-    renew_access_token: RenewAccessToken,
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
     refresh_session: RefreshSession,
 ) -> None:
@@ -133,12 +221,12 @@ async def test_renew_access_token_rejects_expired_session(
         RefreshSessionError,
         match="Refresh session has expired.",
     ):
-        await renew_access_token.execute("refresh-token")
+        await renew_access_token_use_case.execute("refresh-token")
 
 
 @pytest.mark.anyio
 async def test_renew_access_token_rejects_missing_user(
-    renew_access_token: RenewAccessToken,
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
     user_repository: AsyncMock,
     refresh_session: RefreshSession,
@@ -151,12 +239,12 @@ async def test_renew_access_token_rejects_missing_user(
         RefreshSessionError,
         match="Invalid refresh session.",
     ):
-        await renew_access_token.execute("refresh-token")
+        await renew_access_token_use_case.execute("refresh-token")
 
 
 @pytest.mark.anyio
 async def test_renew_access_token_rejects_inactive_user(
-    renew_access_token: RenewAccessToken,
+    renew_access_token_use_case: RenewAccessToken,
     refresh_session_repository: AsyncMock,
     user_repository: AsyncMock,
     refresh_session: RefreshSession,
@@ -171,4 +259,4 @@ async def test_renew_access_token_rejects_inactive_user(
         RefreshSessionError,
         match="Invalid refresh session.",
     ):
-        await renew_access_token.execute("refresh-token")
+        await renew_access_token_use_case.execute("refresh-token")
