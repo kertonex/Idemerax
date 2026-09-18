@@ -74,7 +74,7 @@ async def test_login_rejects_invalid_password() -> None:
         "/auth/login",
         json={
             "email": email,
-            "password": "wrong-password",
+            "password": "wrong-password-value",
         },
     )
 
@@ -325,7 +325,7 @@ async def test_register_rejects_existing_email() -> None:
         "/auth/register",
         json={
             "email": email,
-            "password": "new-password",
+            "password": "new-password-value",
         },
     )
 
