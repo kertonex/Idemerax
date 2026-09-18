@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { getCurrentUser, refreshAccessToken } from '../api/authentication';
 import { AuthContext } from './AuthContext';
@@ -15,9 +15,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY),
   );
   const [isLoading, setIsLoading] = useState(true);
+  const authOperationRef = useRef(0);
 
   useEffect(() => {
     async function restoreAuthentication() {
+      const operation = ++authOperationRef.current;
+
       const storedAccessToken = sessionStorage.getItem(
         ACCESS_TOKEN_STORAGE_KEY,
       );
@@ -25,6 +28,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (storedAccessToken) {
         try {
           await getCurrentUser(storedAccessToken);
+
+          if (operation !== authOperationRef.current) {
+            return;
+          }
+
           setAccessTokenState(storedAccessToken);
           setIsLoading(false);
           return;
@@ -36,13 +44,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const response = await refreshAccessToken();
 
+        if (operation !== authOperationRef.current) {
+          return;
+        }
+
         sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, response.access_token);
         setAccessTokenState(response.access_token);
       } catch {
+        if (operation !== authOperationRef.current) {
+          return;
+        }
+
         sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
         setAccessTokenState(null);
       } finally {
-        setIsLoading(false);
+        if (operation === authOperationRef.current) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -56,6 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (event.newValue === 'logout') {
+        authOperationRef.current += 1;
         sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
         setAccessTokenState(null);
         setIsLoading(false);
@@ -63,10 +82,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (event.newValue === 'login') {
+        const operation = ++authOperationRef.current;
+
         setIsLoading(true);
 
         try {
           const response = await refreshAccessToken();
+
+          if (operation !== authOperationRef.current) {
+            return;
+          }
 
           sessionStorage.setItem(
             ACCESS_TOKEN_STORAGE_KEY,
@@ -74,10 +99,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           );
           setAccessTokenState(response.access_token);
         } catch {
+          if (operation !== authOperationRef.current) {
+            return;
+          }
+
           sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
           setAccessTokenState(null);
         } finally {
-          setIsLoading(false);
+          if (operation === authOperationRef.current) {
+            setIsLoading(false);
+          }
         }
       }
     }
@@ -90,12 +121,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   function setAccessToken(accessToken: string) {
+    authOperationRef.current += 1;
     sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
     setAccessTokenState(accessToken);
     setIsLoading(false);
   }
 
   function clearAccessToken() {
+    authOperationRef.current += 1;
     sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     setAccessTokenState(null);
     setIsLoading(false);

@@ -26,6 +26,7 @@ function LoginForm() {
       });
 
       setAccessToken(response.access_token);
+      localStorage.setItem('idemerax_auth', 'login');
     } catch (error) {
       setError(
         error instanceof Error
