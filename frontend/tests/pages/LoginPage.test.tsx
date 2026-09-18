@@ -27,7 +27,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     expect(
-      screen.getByRole('heading', { name: 'Sign in' }),
+      screen.getByRole('heading', { name: 'Welcome back' }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText('Email')).toBeInTheDocument();

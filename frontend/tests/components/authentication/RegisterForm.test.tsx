@@ -50,13 +50,11 @@ describe('RegisterForm', () => {
     renderRegisterForm();
 
     expect(
-      screen.getByRole('heading', { name: 'Create account' }),
+      screen.getByRole('heading', { name: 'Create your account' }),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(
-        'Create your Idemerax account with your email and password.',
-      ),
+      screen.getByText('Set up your secure Idemerax account in a few seconds.'),
     ).toBeInTheDocument();
   });
 

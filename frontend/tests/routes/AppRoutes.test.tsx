@@ -44,7 +44,7 @@ describe('AppRoutes authentication protection', () => {
     renderRoutes('/accounts', unauthenticatedState);
 
     expect(
-      screen.getByRole('heading', { name: 'Sign in' }),
+      screen.getByRole('heading', { name: 'Welcome back' }),
     ).toBeInTheDocument();
   });
 
@@ -60,7 +60,7 @@ describe('AppRoutes authentication protection', () => {
     renderRoutes('/login', unauthenticatedState);
 
     expect(
-      screen.getByRole('heading', { name: 'Sign in' }),
+      screen.getByRole('heading', { name: 'Welcome back' }),
     ).toBeInTheDocument();
   });
 
