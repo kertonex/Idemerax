@@ -4,14 +4,14 @@ from pydantic import BaseModel, EmailStr, Field
 class LoginRequest(BaseModel):
     """Represent the credentials required for user authentication."""
 
-    email: EmailStr
+    email: EmailStr = Field(max_length=254)
     password: str = Field(min_length=15, max_length=128)
 
 
 class RegisterRequest(BaseModel):
     """Represent the credentials required for user registration."""
 
-    email: EmailStr
+    email: EmailStr = Field(max_length=254)
     password: str = Field(min_length=15, max_length=128)
 
 
