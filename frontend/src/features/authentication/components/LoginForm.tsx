@@ -41,12 +41,23 @@ function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md space-y-6 rounded-xl border border-slate-800 bg-slate-900 p-8 shadow-xl"
+      className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/75 p-7 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
     >
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-white">Sign in</h1>
-        <p className="text-sm text-slate-400">
-          Sign in to access your Idemerax account.
+      <div className="mb-8">
+        <div className="mb-5 flex items-center justify-between">
+          <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+            Account access
+          </span>
+
+          <span className="text-xs text-slate-700">01</span>
+        </div>
+
+        <h1 className="text-2xl font-semibold tracking-[-0.025em] text-white sm:text-[28px]">
+          Welcome back
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          Sign in securely to continue to your Idemerax account.
         </p>
       </div>
 
@@ -67,7 +78,8 @@ function LoginForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
+            placeholder="you@example.com"
+            className="w-full rounded-xl border border-slate-700/90 bg-slate-950/80 px-4 py-3.5 text-sm text-white outline-none transition duration-200 placeholder:text-slate-700 hover:border-slate-600 focus:border-slate-500 focus:ring-4 focus:ring-indigo-500/[0.08]"
           />
         </div>
 
@@ -87,32 +99,62 @@ function LoginForm() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-700"
+            placeholder="Enter your password"
+            className="w-full rounded-xl border border-slate-700/90 bg-slate-950/80 px-4 py-3.5 text-sm text-white outline-none transition duration-200 placeholder:text-slate-700 hover:border-slate-600 focus:border-slate-500 focus:ring-4 focus:ring-indigo-500/[0.08]"
           />
         </div>
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-400">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="mt-5 rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 py-3.5"
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500/10 text-xs font-bold text-red-400"
+              aria-hidden="true"
+            >
+              !
+            </span>
+
+            <p className="text-sm leading-5 text-red-400">{error}</p>
+          </div>
+        </div>
       )}
 
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="group mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-white/[0.04] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-200 hover:shadow-xl hover:shadow-white/[0.06] focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isLoading ? 'Signing in...' : 'Sign in'}
+        <span>{isLoading ? 'Signing in...' : 'Sign in'}</span>
+
+        {!isLoading && (
+          <span
+            className="text-base transition-transform duration-200 group-hover:translate-x-1"
+            aria-hidden="true"
+          >
+            →
+          </span>
+        )}
       </button>
 
-      <p className="text-center text-sm text-slate-400">
-        Don't have an account?{' '}
+      <div className="my-7 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-800" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+          or
+        </span>
+        <div className="h-px flex-1 bg-slate-800" />
+      </div>
+
+      <p className="text-center text-sm text-slate-500">
+        Don&apos;t have an account?{' '}
         <Link
           to="/register"
-          className="font-medium text-white transition hover:text-slate-300"
+          className="font-medium text-slate-200 transition hover:text-white"
         >
-          Sign up
+          Create one
         </Link>
       </p>
     </form>
