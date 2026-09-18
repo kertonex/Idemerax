@@ -3,7 +3,6 @@
   viewBox="0 0 48 48"
   fill="none"
 >
-  <g transform="translate(24 24) scale(1.08) translate(-24 -24)">
   <path
     d="M24 3.5L42.5 14.25V33.75L24 44.5L5.5 33.75V14.25L24 3.5Z"
     stroke="url(#brand-gradient)"
@@ -49,5 +48,4 @@
       <stop offset="1" stop-color="#22d3ee" />
     </linearGradient>
   </defs>
-  </g>
 </svg>
