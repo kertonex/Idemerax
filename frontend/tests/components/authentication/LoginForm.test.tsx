@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 
@@ -129,24 +129,30 @@ describe('LoginForm', () => {
     );
   });
 
-  it('requires an email address', () => {
+  it('requires an email address', async () => {
     renderLoginForm();
 
-    expect(screen.getByLabelText('Email')).toBeRequired();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Email')).toBeRequired();
+    });
   });
 
-  it('requires a password', () => {
+  it('requires a password', async () => {
     renderLoginForm();
 
-    expect(screen.getByLabelText('Password')).toBeRequired();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Password')).toBeRequired();
+    });
   });
 
-  it('links to the registration page', () => {
+  it('links to the registration page', async () => {
     renderLoginForm();
 
-    expect(screen.getByRole('link', { name: 'Create one' })).toHaveAttribute(
-      'href',
-      '/register',
-    );
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Create one' })).toHaveAttribute(
+        'href',
+        '/register',
+      );
+    });
   });
 });
