@@ -146,6 +146,7 @@ lerna-debug.log*
 .pytest_cache/
 .coverage
 .coverage.*
+coverage/
 coverage.xml
 coverage.json
 htmlcov/
@@ -153,7 +154,7 @@ htmlcov/
 .nox/
 .hypothesis/
 .cache/
-.pytest_cache/
+.pytest_cache
 
 # Test output
 test-results/
