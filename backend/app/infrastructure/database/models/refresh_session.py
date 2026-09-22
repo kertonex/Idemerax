@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from app.infrastructure.database.models.user import User
 
 
-
 class RefreshSession(Base):
     """Represent a server-side authentication refresh session."""
 
@@ -43,4 +42,4 @@ class RefreshSession(Base):
 
     user: Mapped["User"] = relationship(
         back_populates="refresh_sessions",
-)
+    )

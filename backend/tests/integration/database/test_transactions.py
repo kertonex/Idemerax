@@ -17,9 +17,7 @@ async def test_rollback_discards_uncommitted_changes() -> None:
         await session.rollback()
 
     async with SessionFactory() as session:
-        result = await session.scalar(
-            select(User).where(User.email == email)
-        )
+        result = await session.scalar(select(User).where(User.email == email))
 
     assert result is None
 
@@ -34,9 +32,7 @@ async def test_committed_changes_are_persisted() -> None:
         await session.commit()
 
     async with SessionFactory() as session:
-        result = await session.scalar(
-            select(User).where(User.email == email)
-        )
+        result = await session.scalar(select(User).where(User.email == email))
 
     assert result is not None
     assert result.email == email

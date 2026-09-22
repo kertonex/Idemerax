@@ -31,7 +31,6 @@ def test_database_models_define_primary_keys() -> None:
         assert primary_keys[0].name == "id"
 
 
-
 def test_database_models_define_expected_columns() -> None:
     """Verify that required model columns use the expected SQLAlchemy types."""
     assert isinstance(User.__table__.c.email.type, String)
