@@ -36,6 +36,7 @@ Branches use a type prefix followed by a short, descriptive kebab-case name base
 - `refactor`
 - `test`
 - `docs`
+- `style`
 - `ci`
 - `build`
 - `chore`
@@ -80,6 +81,7 @@ Commit messages follow the Conventional Commits format.
 | `refactor` | Code restructuring without behavior changes |
 | `test`     | Tests                                       |
 | `docs`     | Documentation                               |
+| `style`    | Formatting and non-functional style changes |
 | `ci`       | CI/CD configuration                         |
 | `build`    | Build system or dependency changes          |
 | `chore`    | Maintenance tasks                           |
@@ -106,6 +108,7 @@ feat: add transaction idempotency
 fix: prevent duplicate transaction processing
 test: add transaction consistency tests
 docs: document transaction lifecycle
+style: format authentication tests
 ci: add commit message validation
 refactor: simplify transaction repository
 chore: update development tooling
@@ -143,6 +146,7 @@ Issue titles use a concise Title Case description without a type prefix.
 | `refactor` | Structural improvements           |
 | `test`     | Testing-related work              |
 | `docs`     | Documentation                     |
+| `style`    | Style and formatting changes      |
 | `ci`       | CI/CD and automation              |
 | `build`    | Build system and dependency work  |
 | `chore`    | Maintenance and repository work   |

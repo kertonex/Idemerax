@@ -10,6 +10,7 @@ module.exports = {
         'refactor',
         'test',
         'docs',
+        'style',
         'ci',
         'build',
         'chore',
