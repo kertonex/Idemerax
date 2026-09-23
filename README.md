@@ -135,8 +135,6 @@ Idemerax follows a modular full-stack architecture. The React frontend communica
 
 ### Architecture Diagram
 
-### Architecture Diagram
-
 ```text
 ┌───────────────────────────────────────────────┐
 │                    Frontend                   │
