@@ -94,6 +94,27 @@ describe('apiClient', () => {
     await expect(apiClient('/accounts')).rejects.toThrow('Invalid request');
   });
 
+  it('returns a user-friendly message for a structured email validation error', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: () =>
+        Promise.resolve({
+          detail: [
+            {
+              type: 'value_error',
+              loc: ['body', 'email'],
+              msg: 'value is not a valid email address.',
+            },
+          ],
+        }),
+    });
+
+    await expect(apiClient('/accounts')).rejects.toThrow(
+      'Please enter a valid email address.',
+    );
+  });
+
   it('throws a connection error when the api is unreachable', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error());
 

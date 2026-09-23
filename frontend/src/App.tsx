@@ -1,7 +1,18 @@
-import AppRoutes from './routes/AppRoutes';
+import { useLocation } from 'react-router';
+
 import AppShell from './components/layout/AppShell';
+import { AuthProvider } from './features/authentication/context/AuthProvider';
+import AppRoutes from './routes/AppRoutes';
 
 function App() {
+  const location = useLocation();
+  const isAuthenticationPage =
+    location.pathname === '/login' || location.pathname === '/register';
+
+  if (isAuthenticationPage) {
+    return <AppRoutes />;
+  }
+
   return (
     <AppShell>
       <AppRoutes />
@@ -9,4 +20,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}

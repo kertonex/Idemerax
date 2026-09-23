@@ -9,10 +9,14 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.1",
+    "argon2-cffi>=25.1.0",
+    "cryptography>=50.0.1",
+    "email-validator>=2.3.0",
     "fastapi>=0.141.1",
     "psycopg[binary]>=3.2.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
+    "pyjwt>=2.14.0",
     "sqlalchemy>=2.0.0",
     "uvicorn>=0.52.3",
 ]
@@ -35,7 +39,7 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py314"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [

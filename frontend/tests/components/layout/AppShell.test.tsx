@@ -1,16 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
+import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 import AppShell from '../../../src/components/layout/AppShell';
 
 describe('AppShell', () => {
   it('renders the application shell', () => {
     render(
-      <MemoryRouter>
-        <AppShell>
-          <p>Dashboard content</p>
-        </AppShell>
-      </MemoryRouter>,
+      <AuthProvider>
+        <MemoryRouter>
+          <AppShell>
+            <p>Dashboard content</p>
+          </AppShell>
+        </MemoryRouter>
+      </AuthProvider>,
     );
 
     expect(screen.getAllByText('Idemerax')).toHaveLength(2);

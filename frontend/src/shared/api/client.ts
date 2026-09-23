@@ -10,6 +10,39 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
 };
 
+/**
+ * Extract a user-readable message from an API error response.
+ *
+ * @param errorData - The parsed API error response.
+ * @returns A user-readable error message, or undefined if none is available.
+ */
+function getApiErrorMessage(
+  errorData: ApiErrorResponse | undefined,
+): string | undefined {
+  if (!errorData) {
+    return undefined;
+  }
+
+  if (typeof errorData.detail === 'string') {
+    return errorData.detail;
+  }
+
+  if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+    const validationError = errorData.detail[0];
+
+    if (
+      validationError.loc.includes('email') &&
+      validationError.type === 'value_error'
+    ) {
+      return 'Please enter a valid email address.';
+    }
+
+    return validationError.msg;
+  }
+
+  return errorData.message;
+}
+
 export async function apiClient<T>(
   path: string,
   options?: ApiRequestOptions,
@@ -37,6 +70,7 @@ export async function apiClient<T>(
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...requestOptions,
+      credentials: 'include',
       headers,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
@@ -54,8 +88,7 @@ export async function apiClient<T>(
     }
 
     throw new Error(
-      errorData?.detail ??
-        errorData?.message ??
+      getApiErrorMessage(errorData) ??
         `API request failed with status ${response.status}`,
     );
   }

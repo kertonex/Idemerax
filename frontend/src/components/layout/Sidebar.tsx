@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 
+import idemeraxLogo from '../../assets/idemerax-logo.svg';
 const mainNavigationItems = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Accounts', to: '/accounts' },
@@ -13,7 +14,10 @@ function Sidebar() {
   return (
     <aside className="flex min-h-screen w-64 flex-col border-r border-slate-800 bg-slate-950">
       <div className="p-6">
-        <span className="text-lg font-semibold">Idemerax</span>
+        <div className="flex items-center gap-2.5">
+          <img src={idemeraxLogo} alt="" className="h-8 w-8" />
+          <span className="text-lg font-semibold">Idemerax</span>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-6 px-4">
