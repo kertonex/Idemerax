@@ -9,3 +9,7 @@ class AccountRepositoryPort(Protocol):
     async def create(self, user_id: int) -> Account:
         """Create and return a new account."""
         ...
+
+    async def get_by_user_id(self, user_id: int) -> Account | None:
+        """Return the account belonging to a user."""
+        ...
