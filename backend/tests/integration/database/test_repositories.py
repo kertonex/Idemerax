@@ -152,3 +152,40 @@ async def test_create_account_persists_account_for_user() -> None:
     assert persisted_account.id == account_id
     assert persisted_account.user_id == user_id
     assert persisted_account.balance == 0
+
+
+@pytest.mark.anyio
+async def test_get_account_by_user_id_returns_matching_account() -> None:
+    """Return the account belonging to the given user."""
+    email = f"account-get-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash="test-password-hash",
+        )
+        session.add(user)
+        await session.flush()
+
+        account = Account(user_id=user.id)
+        session.add(account)
+        await session.commit()
+
+        repository = AccountRepository(session)
+        result = await repository.get_by_user_id(user.id)
+
+    assert result is not None
+    assert result.id == account.id
+    assert result.user_id == user.id
+    assert result.balance == 0
+
+
+@pytest.mark.anyio
+async def test_get_account_by_unknown_user_id_returns_none() -> None:
+    """Return None when the user has no financial account."""
+    async with SessionFactory() as session:
+        repository = AccountRepository(session)
+
+        result = await repository.get_by_user_id(user_id=999999999)
+
+    assert result is None
