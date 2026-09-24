@@ -2,8 +2,10 @@ from uuid import uuid4
 
 import pytest
 
+from app.infrastructure.database.models.account import Account
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
+from app.infrastructure.repositories.account import AccountRepository
 from app.infrastructure.repositories.user import UserRepository
 
 
@@ -120,3 +122,33 @@ async def test_get_user_by_email_returns_inactive_user() -> None:
     assert result is not None
     assert result.email == email
     assert result.is_active is False
+
+
+@pytest.mark.anyio
+async def test_create_account_persists_account_for_user() -> None:
+    """Create and persist an account for the given user."""
+    email = f"account-repository-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash="test-password-hash",
+        )
+        session.add(user)
+        await session.flush()
+
+        repository = AccountRepository(session)
+        account = await repository.create(user_id=user.id)
+
+        await session.commit()
+
+        account_id = account.id
+        user_id = user.id
+
+    async with SessionFactory() as session:
+        persisted_account = await session.get(Account, account_id)
+
+    assert persisted_account is not None
+    assert persisted_account.id == account_id
+    assert persisted_account.user_id == user_id
+    assert persisted_account.balance == 0
