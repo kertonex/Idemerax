@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.accounts import router as accounts_router
 from app.api.routes.authentication import router as authentication_router
 
 app = FastAPI(
@@ -14,6 +15,7 @@ app = FastAPI(
 )
 
 app.include_router(authentication_router)
+app.include_router(accounts_router)
 
 # Allow requests from the local frontend during development.
 app.add_middleware(

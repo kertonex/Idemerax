@@ -30,6 +30,7 @@ from app.core.security import (
 )
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import get_session
+from app.infrastructure.repositories.account import AccountRepository
 from app.infrastructure.repositories.refresh_session import (
     RefreshSessionRepository,
 )
@@ -92,12 +93,16 @@ async def login(
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     credentials: RegisterRequest,
-    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Register a new user and return an access token."""
     user_repository = UserRepository(session)
-    register_user = RegisterUser(user_repository)
+    account_repository = AccountRepository(session)
+
+    register_user = RegisterUser(
+        user_repository=user_repository,
+        account_repository=account_repository,
+    )
 
     try:
         user = await register_user.execute(
@@ -111,34 +116,14 @@ async def register(
         ) from exc
     except IntegrityError as exc:
         await session.rollback()
-
         if isinstance(exc.orig, UniqueViolation):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email address is already registered.",
             ) from exc
-
         raise
 
     access_token = create_access_token(str(user.id))
-    refresh_token = create_refresh_token()
-
-    refresh_session_repository = RefreshSessionRepository(session)
-
-    await refresh_session_repository.create(
-        user_id=user.id,
-        token_hash=hash_refresh_token(refresh_token),
-        expires_at=datetime.now(UTC)
-        + timedelta(days=settings.refresh_session_expire_days),
-    )
-
-    response.set_cookie(
-        key=REFRESH_TOKEN_COOKIE,
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-    )
 
     return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
 

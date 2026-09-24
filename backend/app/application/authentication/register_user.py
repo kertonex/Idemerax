@@ -1,4 +1,7 @@
-from app.application.authentication.ports import UserRepositoryPort
+from app.application.authentication.ports import (
+    AccountRepositoryPort,
+    UserRepositoryPort,
+)
 from app.core.security import hash_password
 from app.infrastructure.database.models.user import User
 
@@ -8,17 +11,22 @@ class RegistrationError(Exception):
 
 
 class RegisterUser:
-    """Register new users with email and password."""
+    """Register users and create their initial financial account."""
 
-    def __init__(self, user_repository: UserRepositoryPort) -> None:
+    def __init__(
+        self,
+        user_repository: UserRepositoryPort,
+        account_repository: AccountRepositoryPort,
+    ) -> None:
         self.user_repository = user_repository
+        self.account_repository = account_repository
 
     async def execute(
         self,
         email: str,
         password: str,
     ) -> User:
-        """Register a new user and return the created user."""
+        """Register a user and create their initial financial account."""
         existing_user = await self.user_repository.get_by_email(email)
 
         if existing_user is not None:
@@ -28,7 +36,13 @@ class RegisterUser:
 
         password_hash = hash_password(password)
 
-        return await self.user_repository.create(
+        user = await self.user_repository.create(
             email=email,
             password_hash=password_hash,
         )
+
+        await self.account_repository.create(
+            user_id=user.id,
+        )
+
+        return user

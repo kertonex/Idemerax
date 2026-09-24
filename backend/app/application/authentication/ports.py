@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
+from app.infrastructure.database.models.account import Account
 from app.infrastructure.database.models.refresh_session import RefreshSession
 from app.infrastructure.database.models.user import User
 
@@ -18,6 +19,14 @@ class UserRepositoryPort(Protocol):
 
     async def create(self, email: str, password_hash: str) -> User:
         """Create and return a new user."""
+        ...
+
+
+class AccountRepositoryPort(Protocol):
+    """Define account data access required by account management."""
+
+    async def create(self, user_id: int) -> Account:
+        """Create and return a new account."""
         ...
 
 
