@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { useAuth } from '../features/authentication/context/useAuth';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import AccountsPage from '../pages/AccountsPage';
 import { getHealth } from '../shared/api/health';
 
 function DashboardPage() {
@@ -12,10 +13,6 @@ function DashboardPage() {
   }, []);
 
   return <h1 className="text-2xl font-semibold">Dashboard</h1>;
-}
-
-function AccountsPage() {
-  return <h1 className="text-2xl font-semibold">Accounts</h1>;
 }
 
 function CardsPage() {
@@ -94,6 +91,7 @@ function AppRoutes() {
         }
       />
 
+      {/* Account overview is available only to authenticated users. */}
       <Route
         path="/accounts"
         element={
