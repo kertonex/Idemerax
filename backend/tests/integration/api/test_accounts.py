@@ -7,6 +7,7 @@ from app.core.security import create_access_token, hash_password
 from app.infrastructure.database.models.account import Account
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
+from app.infrastructure.repositories.account import AccountRepository
 from app.main import app
 
 client = TestClient(app)
@@ -86,9 +87,9 @@ async def test_get_my_account_returns_authenticated_users_account() -> None:
         session.add_all([first_user, second_user])
         await session.flush()
 
-        first_account = Account(user_id=first_user.id)
-        second_account = Account(user_id=second_user.id)
-        session.add_all([first_account, second_account])
+        repository = AccountRepository(session)
+        first_account = await repository.create(user_id=first_user.id)
+        await repository.create(user_id=second_user.id)
         await session.commit()
 
         first_user_id = first_user.id

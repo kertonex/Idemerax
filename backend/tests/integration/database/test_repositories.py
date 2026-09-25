@@ -1,7 +1,9 @@
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 
+from app.domain.account.iban import generate_account_number
 from app.infrastructure.database.models.account import Account
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
@@ -152,6 +154,88 @@ async def test_create_account_persists_account_for_user() -> None:
     assert persisted_account.id == account_id
     assert persisted_account.user_id == user_id
     assert persisted_account.balance == 0
+    assert persisted_account.account_number.isdigit()
+    assert len(persisted_account.account_number) == 10
+    assert persisted_account.iban.startswith("DE")
+    assert len(persisted_account.iban) == 22
+
+
+@pytest.mark.anyio
+async def test_create_account_retries_after_account_number_collision() -> None:
+    """Retry account number generation when the candidate already exists."""
+    email = f"account-retry-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash="test-password-hash",
+        )
+        session.add(user)
+        await session.flush()
+
+        repository = AccountRepository(session)
+        existing_account = await repository.create(user_id=user.id)
+        await session.flush()
+
+        replacement_account_number = generate_account_number()
+
+        with (
+            patch.object(
+                repository,
+                "get_by_account_number",
+                side_effect=[existing_account, None],
+            ),
+            patch(
+                "app.infrastructure.repositories.account.generate_account_number",
+                side_effect=[
+                    existing_account.account_number,
+                    replacement_account_number,
+                ],
+            ),
+        ):
+            account = await repository.create(user_id=user.id)
+
+        await session.commit()
+
+    assert account.account_number == replacement_account_number
+    assert account.iban.endswith(replacement_account_number)
+
+
+@pytest.mark.anyio
+async def test_create_account_raises_after_ten_account_number_collisions() -> None:
+    """Raise an error when no unique account number can be allocated."""
+    email = f"account-collision-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash="test-password-hash",
+        )
+        session.add(user)
+        await session.flush()
+
+        repository = AccountRepository(session)
+        existing_account = await repository.create(user_id=user.id)
+        await session.flush()
+
+        with (
+            patch.object(
+                repository,
+                "get_by_account_number",
+                return_value=existing_account,
+            ),
+            patch(
+                "app.infrastructure.repositories.account.generate_account_number",
+                return_value=existing_account.account_number,
+            ),
+        ):
+            with pytest.raises(
+                RuntimeError,
+                match="Unable to allocate a unique account number.",
+            ):
+                await repository.create(user_id=user.id)
+
+        await session.rollback()
 
 
 @pytest.mark.anyio
@@ -167,11 +251,10 @@ async def test_get_account_by_user_id_returns_matching_account() -> None:
         session.add(user)
         await session.flush()
 
-        account = Account(user_id=user.id)
-        session.add(account)
+        repository = AccountRepository(session)
+        account = await repository.create(user_id=user.id)
         await session.commit()
 
-        repository = AccountRepository(session)
         result = await repository.get_by_user_id(user.id)
 
     assert result is not None

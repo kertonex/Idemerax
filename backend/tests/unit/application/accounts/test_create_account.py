@@ -12,6 +12,9 @@ async def test_create_account_creates_account_for_user() -> None:
     account = Account(
         id=1,
         user_id=42,
+        institution_id=1,
+        account_number="1234567890",
+        iban="DE00123456781234567890",
     )
 
     account_repository = Mock()
