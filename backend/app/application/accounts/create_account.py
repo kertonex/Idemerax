@@ -9,5 +9,5 @@ class CreateAccount:
         self.account_repository = account_repository
 
     async def execute(self, user_id: int) -> Account:
-        """Create and return a financial account for a user."""
+        """Create and return a financial account."""
         return await self.account_repository.create(user_id=user_id)

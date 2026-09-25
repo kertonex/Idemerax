@@ -8,4 +8,6 @@ class AccountResponse(BaseModel):
 
     id: int
     user_id: int
+    account_number: str
+    iban: str
     balance: Decimal

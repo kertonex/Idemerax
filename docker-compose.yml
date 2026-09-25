@@ -13,20 +13,21 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build:
-      context: ./backend
-    environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_USER: ${DATABASE_USER}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
+backend:
+  build:
+    context: ./backend
+  environment:
+    DATABASE_HOST: postgres
+    DATABASE_PORT: 5432
+    DATABASE_NAME: ${DATABASE_NAME}
+    DATABASE_USER: ${DATABASE_USER}
+    DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+    IDEMERAX_BANK_CODE: ${IDEMERAX_BANK_CODE}
+  ports:
+    - "8000:8000"
+  depends_on:
+    postgres:
+      condition: service_healthy
 
   frontend:
     build:
