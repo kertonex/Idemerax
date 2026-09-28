@@ -22,6 +22,8 @@ const mockGetMyAccount = vi.mocked(getMyAccount);
 const account = {
   id: 1,
   user_id: 42,
+  account_number: '1234567890',
+  iban: 'DE31123456781234567890',
   balance: '1250.5000',
 };
 
@@ -73,7 +75,8 @@ describe('AccountsPage', () => {
     expect(screen.getByText('Your Financial Account')).toBeInTheDocument();
     expect(screen.getByText('Available Balance')).toBeInTheDocument();
     expect(screen.getByText('1.250,50 €')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('DE31 1234 5678 1234 5678 90')).toBeInTheDocument();
+    expect(screen.getAllByText('Active')).toHaveLength(2);
 
     expect(mockGetMyAccount).toHaveBeenCalledWith('test-access-token');
   });
