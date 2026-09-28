@@ -1,10 +1,11 @@
+import { useState } from 'react';
+
 import type { Account } from '../api/accounts';
 
 interface AccountCardProps {
   account: Account;
 }
 
-// Format the API balance for display in the account overview.
 function formatBalance(balance: string): string {
   const amount = Number(balance);
 
@@ -20,279 +21,208 @@ function formatBalance(balance: string): string {
   }).format(amount);
 }
 
+function formatIban(iban: string): string {
+  return iban
+    .replace(/\s+/g, '')
+    .replace(/(.{4})/g, '$1 ')
+    .trim();
+}
+
 function AccountCard({ account }: AccountCardProps) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const formattedIban = formatIban(account.iban);
+
+  async function handleCopyIban() {
+    try {
+      await navigator.clipboard.writeText(account.iban);
+      setIsCopied(true);
+
+      window.setTimeout(() => {
+        setIsCopied(false);
+      }, 2000);
+    } catch {
+      setIsCopied(false);
+    }
+  }
+
   return (
-    <article className="relative isolate w-full min-w-0 overflow-hidden rounded-2xl border border-slate-700/80 bg-[#071522] shadow-2xl shadow-black/30">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_55%,rgba(37,99,235,0.2),transparent_34%),radial-gradient(circle_at_52%_105%,rgba(30,64,175,0.12),transparent_42%)]"
-      />
+    <div className="space-y-5">
+      <article className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/80 p-6 shadow-2xl shadow-slate-950/40 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_55%,rgba(37,99,235,0.18),transparent_38%)]" />
 
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 top-1/3 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl sm:h-80 sm:w-80"
-      />
-
-      <div className="relative min-w-0 p-5 sm:p-7 lg:p-9">
-        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-600/20 shadow-lg shadow-blue-950/30 sm:h-14 sm:w-14">
-            <svg
-              aria-hidden="true"
-              className="h-5.5 w-5.5 text-blue-300 sm:h-7 sm:w-7"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 9.5 12 3l9 6.5"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 9.5h14"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5.5 10.5V18m4.25-7.5V18m4.5-7.5V18m4.25-7.5V18"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3.5 18.5h17M2.5 20.5h19"
-              />
-            </svg>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 sm:gap-x-3">
-              <h2 className="min-w-0 break-words text-base font-semibold tracking-tight text-white sm:text-2xl">
-                Your Financial Account
-              </h2>
-
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 sm:px-3 sm:text-xs">
-                <span
+        <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-600/20 ring-1 ring-blue-500/20">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7 text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
                   aria-hidden="true"
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_9px_rgba(52,211,153,0.9)] sm:h-2 sm:w-2"
-                />
-                Active
-              </span>
+                >
+                  <path
+                    d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 7l8-4 8 4v2H4V7Z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-xl font-semibold text-white">
+                    Your Financial Account
+                  </h2>
+
+                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    Active
+                  </span>
+                </div>
+
+                <p className="mt-2 text-sm text-slate-400">
+                  Your account is ready for secure transactions.
+                </p>
+              </div>
             </div>
 
-            <p className="mt-1.5 max-w-lg text-xs leading-5 text-slate-400 sm:text-sm">
-              Your account is ready for secure transactions.
-            </p>
-          </div>
-        </div>
+            <div className="mt-8">
+              <p className="text-sm font-medium text-slate-400">
+                Available Balance
+              </p>
 
-        <div className="relative mt-8 sm:mt-12">
-          {/* Balance */}
-          <div className="relative z-10 min-w-0 sm:max-w-[58%]">
-            <p className="text-xs font-medium text-slate-400 sm:text-sm">
-              Available Balance
-            </p>
+              <p className="mt-2 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                {formatBalance(account.balance)}
+              </p>
 
-            <p className="mt-2 max-w-full break-words text-[clamp(2.35rem,10vw,4.75rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-white">
-              {formatBalance(account.balance)}
-            </p>
-
-            <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400 sm:text-sm">
-              EUR
-            </p>
+              <p className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                EUR
+              </p>
+            </div>
           </div>
 
-          {/* Bank illustration */}
-          <div
-            aria-hidden="true"
-            className="relative mx-auto mt-6 w-full max-w-[16rem] opacity-80 sm:absolute sm:bottom-[-3rem] sm:right-[-1rem] sm:mt-0 sm:w-[46%] sm:max-w-[24rem] lg:right-0 lg:w-[42%] lg:max-w-[28rem]"
-          >
+          <div className="pointer-events-none hidden items-center justify-center lg:flex">
             <svg
-              className="h-auto w-full"
+              viewBox="0 0 240 180"
+              className="h-44 w-56 text-blue-400/80"
               fill="none"
-              viewBox="0 0 420 330"
-              preserveAspectRatio="xMidYMid meet"
+              aria-hidden="true"
             >
               <defs>
                 <linearGradient
-                  id="bank-roof"
-                  x1="125"
-                  y1="30"
-                  x2="335"
-                  y2="180"
+                  id="bank-gradient"
+                  x1="40"
+                  y1="20"
+                  x2="190"
+                  y2="160"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop offset="0" stopColor="#93c5fd" stopOpacity="0.95" />
-                  <stop offset="0.45" stopColor="#3b82f6" stopOpacity="0.72" />
-                  <stop offset="1" stopColor="#1e40af" stopOpacity="0.2" />
-                </linearGradient>
-
-                <linearGradient
-                  id="bank-columns"
-                  x1="130"
-                  y1="120"
-                  x2="310"
-                  y2="270"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop offset="0" stopColor="#93c5fd" stopOpacity="0.72" />
-                  <stop offset="0.5" stopColor="#3b82f6" stopOpacity="0.48" />
-                  <stop offset="1" stopColor="#1e3a8a" stopOpacity="0.16" />
-                </linearGradient>
-
-                <radialGradient id="bank-light">
-                  <stop offset="0" stopColor="#2563eb" stopOpacity="0.3" />
-                  <stop offset="1" stopColor="#2563eb" stopOpacity="0" />
-                </radialGradient>
-
-                <filter
-                  id="bank-shadow"
-                  x="-40%"
-                  y="-40%"
-                  width="180%"
-                  height="190%"
-                >
-                  <feGaussianBlur
-                    in="SourceAlpha"
-                    stdDeviation="7"
-                    result="blur"
+                  <stop stopColor="currentColor" stopOpacity="0.9" />
+                  <stop
+                    offset="1"
+                    stopColor="currentColor"
+                    stopOpacity="0.25"
                   />
-                  <feOffset dy="10" result="offset" />
-                  <feColorMatrix
-                    in="offset"
-                    type="matrix"
-                    values="0 0 0 0 0.01 0 0 0 0 0.08 0 0 0 0 0.25 0 0 0 0.55 0"
-                    result="shadow"
-                  />
-                  <feMerge>
-                    <feMergeNode in="shadow" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
+                </linearGradient>
               </defs>
 
-              <ellipse
-                cx="270"
-                cy="165"
-                rx="155"
-                ry="125"
-                fill="url(#bank-light)"
+              <path
+                d="m32 62 88-38 88 38-88 38-88-38Z"
+                fill="url(#bank-gradient)"
+                opacity="0.75"
               />
 
-              <ellipse
-                cx="275"
-                cy="302"
-                rx="110"
-                ry="15"
-                fill="#2563eb"
-                opacity="0.1"
+              <path
+                d="M51 70v55m34-55v55m34-55v55m34-55v55"
+                stroke="currentColor"
+                strokeWidth="10"
+                strokeLinecap="round"
+                opacity="0.65"
               />
 
-              <g filter="url(#bank-shadow)">
-                <path
-                  d="M112 102 263 29l124 64-146 79-129-70Z"
-                  fill="url(#bank-roof)"
-                  stroke="#60a5fa"
-                  strokeOpacity="0.58"
-                  strokeWidth="2"
-                />
+              <path
+                d="M39 130h162M48 145h144"
+                stroke="currentColor"
+                strokeWidth="8"
+                strokeLinecap="round"
+                opacity="0.5"
+              />
 
-                <path
-                  d="m112 102 129 70 146-79"
-                  stroke="#60a5fa"
-                  strokeOpacity="0.45"
-                  strokeWidth="2"
-                />
-
-                <path
-                  d="m137 102 104 56 116-63-95-49-125 56Z"
-                  fill="#60a5fa"
-                  fillOpacity="0.06"
-                  stroke="#93c5fd"
-                  strokeOpacity="0.22"
-                />
-
-                <path
-                  d="M145 119v130h225V101l-129 71-96-53Z"
-                  fill="url(#bank-columns)"
-                  stroke="#60a5fa"
-                  strokeOpacity="0.28"
-                  strokeWidth="1.5"
-                />
-
-                <path
-                  d="m241 172 129-71v148l-129 32V172Z"
-                  fill="#1d4ed8"
-                  fillOpacity="0.07"
-                />
-
-                <g stroke="url(#bank-columns)">
-                  <path
-                    d="M163 132v104"
-                    strokeWidth="13"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M202 153v88"
-                    strokeWidth="13"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M241 173v67"
-                    strokeWidth="13"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M280 153v80"
-                    strokeWidth="13"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M319 132v94"
-                    strokeWidth="13"
-                    strokeLinecap="round"
-                  />
-                </g>
-
-                <g stroke="#bfdbfe" strokeOpacity="0.25">
-                  <path d="M160 132v104" strokeWidth="3" />
-                  <path d="M199 153v88" strokeWidth="3" />
-                  <path d="M238 173v67" strokeWidth="3" />
-                  <path d="M277 153v80" strokeWidth="3" />
-                  <path d="M316 132v94" strokeWidth="3" />
-                </g>
-
-                <path
-                  d="M137 236h236v13H137z"
-                  fill="#60a5fa"
-                  fillOpacity="0.22"
-                />
-
-                <path
-                  d="M128 249h253v13H128z"
-                  fill="#60a5fa"
-                  fillOpacity="0.16"
-                />
-
-                <path
-                  d="M119 262h271v15H119z"
-                  fill="#60a5fa"
-                  fillOpacity="0.21"
-                />
-
-                <path
-                  d="M108 277h291v15H108z"
-                  fill="#60a5fa"
-                  fillOpacity="0.12"
-                />
-              </g>
+              <path
+                d="m28 61 92-40 92 40"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
         </div>
-      </div>
-    </article>
+      </article>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 shadow-xl shadow-slate-950/30">
+        <div className="border-b border-slate-800 px-6 py-5 sm:px-7">
+          <h3 className="text-lg font-semibold text-white">Account Details</h3>
+        </div>
+
+        <div className="divide-y divide-slate-800">
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr] sm:px-7">
+            <span className="text-sm font-medium text-slate-400">
+              Account Type
+            </span>
+
+            <span className="text-sm text-slate-200">Personal</span>
+          </div>
+
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:px-7">
+            <span className="text-sm font-medium text-slate-400">IBAN</span>
+
+            <span className="break-all font-mono text-sm tracking-wide text-slate-200 sm:break-normal">
+              {formattedIban}
+            </span>
+
+            <button
+              type="button"
+              onClick={handleCopyIban}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              aria-label={isCopied ? 'IBAN copied' : 'Copy IBAN'}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <rect width="13" height="13" x="8" y="8" rx="2" />
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+              </svg>
+
+              {isCopied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr] sm:px-7">
+            <span className="text-sm font-medium text-slate-400">Currency</span>
+
+            <span className="text-sm text-slate-200">EUR - Euro</span>
+          </div>
+
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr] sm:px-7">
+            <span className="text-sm font-medium text-slate-400">Status</span>
+
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Active
+            </span>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
