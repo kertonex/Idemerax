@@ -28,11 +28,26 @@ function formatIban(iban: string): string {
     .trim();
 }
 
+function formatCreatedAt(createdAt: string): string {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown';
+  }
+
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
 function AccountCard({ account }: AccountCardProps) {
   const [isCopied, setIsCopied] = useState(false);
   const [isBicCopied, setIsBicCopied] = useState(false);
 
   const formattedIban = formatIban(account.iban);
+  const formattedCreatedAt = formatCreatedAt(account.created_at);
 
   async function handleCopyIban() {
     try {
@@ -242,11 +257,19 @@ function AccountCard({ account }: AccountCardProps) {
                 aria-hidden="true"
               >
                 <rect width="13" height="13" x="8" y="8" rx="2" />
-                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0 2 2v8a2 2 0 0 0 2h2" />
               </svg>
 
               {isBicCopied ? 'Copied' : 'Copy'}
             </button>
+          </div>
+
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr] sm:px-7">
+            <span className="text-sm font-medium text-slate-400">
+              Created At
+            </span>
+
+            <span className="text-sm text-slate-200">{formattedCreatedAt}</span>
           </div>
 
           <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr] sm:px-7">

@@ -6,6 +6,7 @@ export type Account = {
   account_number: string;
   iban: string;
   bic: string;
+  created_at: string;
   balance: string;
 };
 
