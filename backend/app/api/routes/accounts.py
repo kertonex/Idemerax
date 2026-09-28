@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_current_user
 from app.application.accounts.create_account import CreateAccount
 from app.application.accounts.get_my_account import GetMyAccount
-from app.infrastructure.database.models.account import Account
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.account import AccountRepository

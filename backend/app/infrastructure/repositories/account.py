@@ -43,6 +43,7 @@ class AccountRepository:
                     bank_code=settings.idemerax_bank_code,
                     account_number=account_number,
                 ),
+                institution=institution,
             )
 
             self.session.add(account)
