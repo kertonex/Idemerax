@@ -165,6 +165,8 @@ async def test_create_account_persists_account_for_user() -> None:
     assert len(persisted_account.account_number) == 10
     assert persisted_account.iban.startswith("DE")
     assert len(persisted_account.iban) == 22
+    assert persisted_account.created_at is not None
+    assert persisted_account.created_at.tzinfo is not None
     assert persisted_account.institution.bic == "IDEMDEFFXXX"
 
 

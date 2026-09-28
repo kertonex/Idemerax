@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -53,6 +54,11 @@ async def test_create_account_creates_financial_account_for_authenticated_user()
     assert data["user_id"] == user_id
     assert data["balance"] == "0.0000"
     assert data["bic"] == "IDEMDEFFXXX"
+    assert "created_at" in data
+
+    created_at = datetime.fromisoformat(data["created_at"])
+
+    assert created_at.tzinfo is not None
 
     async with SessionFactory() as session:
         account = await session.get(Account, data["id"])
@@ -111,3 +117,8 @@ async def test_get_my_account_returns_authenticated_users_account() -> None:
     assert data["user_id"] == first_user_id
     assert data["balance"] == "0.0000"
     assert data["bic"] == "IDEMDEFFXXX"
+    assert "created_at" in data
+
+    created_at = datetime.fromisoformat(data["created_at"])
+
+    assert created_at.tzinfo is not None
