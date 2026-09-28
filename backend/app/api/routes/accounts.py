@@ -35,6 +35,7 @@ async def create_account(
         account_number=account.account_number,
         iban=account.iban,
         bic=account.institution.bic,
+        created_at=account.created_at,
         balance=account.balance,
     )
 
@@ -61,5 +62,6 @@ async def get_my_account(
         account_number=account.account_number,
         iban=account.iban,
         bic=account.institution.bic,
+        created_at=account.created_at,
         balance=account.balance,
     )
