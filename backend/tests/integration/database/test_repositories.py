@@ -2,6 +2,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.domain.account.iban import generate_account_number
 from app.infrastructure.database.models.account import Account
@@ -148,7 +150,12 @@ async def test_create_account_persists_account_for_user() -> None:
         user_id = user.id
 
     async with SessionFactory() as session:
-        persisted_account = await session.get(Account, account_id)
+        result = await session.execute(
+            select(Account)
+            .options(selectinload(Account.institution))
+            .where(Account.id == account_id)
+        )
+        persisted_account = result.scalar_one_or_none()
 
     assert persisted_account is not None
     assert persisted_account.id == account_id
@@ -158,6 +165,7 @@ async def test_create_account_persists_account_for_user() -> None:
     assert len(persisted_account.account_number) == 10
     assert persisted_account.iban.startswith("DE")
     assert len(persisted_account.iban) == 22
+    assert persisted_account.institution.bic == "IDEMDEFFXXX"
 
 
 @pytest.mark.anyio

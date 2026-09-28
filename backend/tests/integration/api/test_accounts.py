@@ -52,6 +52,7 @@ async def test_create_account_creates_financial_account_for_authenticated_user()
     assert data["id"]
     assert data["user_id"] == user_id
     assert data["balance"] == "0.0000"
+    assert data["bic"] == "IDEMDEFFXXX"
 
     async with SessionFactory() as session:
         account = await session.get(Account, data["id"])
@@ -109,3 +110,4 @@ async def test_get_my_account_returns_authenticated_users_account() -> None:
     assert data["id"] == first_account_id
     assert data["user_id"] == first_user_id
     assert data["balance"] == "0.0000"
+    assert data["bic"] == "IDEMDEFFXXX"
