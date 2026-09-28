@@ -12,6 +12,7 @@ const account: Account = {
   iban: 'DE31123456781234567890',
   balance: '1250.5000',
   bic: 'IDEMDEFFXXX',
+  created_at: '2026-09-28T14:07:00+00:00',
 };
 
 function renderAccountCard(overrides: Partial<Account> = {}) {
@@ -87,6 +88,22 @@ describe('AccountCard', () => {
     expect(
       screen.getByRole('button', { name: 'BIC copied' }),
     ).toHaveTextContent('Copied');
+  });
+
+  it('displays the account creation date', () => {
+    renderAccountCard();
+
+    expect(screen.getByText('Created At')).toBeInTheDocument();
+    expect(screen.getByText('28.09.2026')).toBeInTheDocument();
+  });
+
+  it('displays Unknown for an invalid account creation date', () => {
+    renderAccountCard({
+      created_at: 'invalid-date',
+    });
+
+    expect(screen.getByText('Created At')).toBeInTheDocument();
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
   });
 
   it('resets the copied state after two seconds', async () => {

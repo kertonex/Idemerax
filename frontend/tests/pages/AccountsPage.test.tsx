@@ -26,6 +26,7 @@ const account = {
   iban: 'DE31123456781234567890',
   balance: '1250.5000',
   bic: 'IDEMDEFFXXX',
+  created_at: '2026-09-28T14:07:00+00:00',
 };
 
 // Render the page with the authentication provider required by AccountsPage.
