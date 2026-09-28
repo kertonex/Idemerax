@@ -11,6 +11,7 @@ const account: Account = {
   account_number: '1234567890',
   iban: 'DE31123456781234567890',
   balance: '1250.5000',
+  bic: 'IDEMDEFFXXX',
 };
 
 function renderAccountCard(overrides: Partial<Account> = {}) {
@@ -62,6 +63,32 @@ describe('AccountCard', () => {
     ).toHaveTextContent('Copied');
   });
 
+  it('displays the BIC', () => {
+    renderAccountCard();
+
+    expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Copy BIC' }),
+    ).toBeInTheDocument();
+  });
+
+  it('copies the BIC and shows the copied state', async () => {
+    const user = userEvent.setup();
+
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue(undefined);
+
+    renderAccountCard();
+
+    await user.click(screen.getByRole('button', { name: 'Copy BIC' }));
+
+    expect(writeText).toHaveBeenCalledWith('IDEMDEFFXXX');
+    expect(
+      screen.getByRole('button', { name: 'BIC copied' }),
+    ).toHaveTextContent('Copied');
+  });
+
   it('resets the copied state after two seconds', async () => {
     vi.useFakeTimers();
 
@@ -104,6 +131,26 @@ describe('AccountCard', () => {
     );
     expect(
       screen.queryByRole('button', { name: 'IBAN copied' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the BIC copy state unchanged when copying fails', async () => {
+    const user = userEvent.setup();
+
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockRejectedValue(new Error('Clipboard unavailable'));
+
+    renderAccountCard();
+
+    await user.click(screen.getByRole('button', { name: 'Copy BIC' }));
+
+    expect(writeText).toHaveBeenCalledWith('IDEMDEFFXXX');
+    expect(screen.getByRole('button', { name: 'Copy BIC' })).toHaveTextContent(
+      'Copy',
+    );
+    expect(
+      screen.queryByRole('button', { name: 'BIC copied' }),
     ).not.toBeInTheDocument();
   });
 });
