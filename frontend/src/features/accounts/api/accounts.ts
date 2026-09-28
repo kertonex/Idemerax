@@ -5,6 +5,7 @@ export type Account = {
   user_id: number;
   account_number: string;
   iban: string;
+  bic: string;
   balance: string;
 };
 

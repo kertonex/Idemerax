@@ -30,6 +30,7 @@ function formatIban(iban: string): string {
 
 function AccountCard({ account }: AccountCardProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isBicCopied, setIsBicCopied] = useState(false);
 
   const formattedIban = formatIban(account.iban);
 
@@ -43,6 +44,19 @@ function AccountCard({ account }: AccountCardProps) {
       }, 2000);
     } catch {
       setIsCopied(false);
+    }
+  }
+
+  async function handleCopyBic() {
+    try {
+      await navigator.clipboard.writeText(account.bic);
+      setIsBicCopied(true);
+
+      window.setTimeout(() => {
+        setIsBicCopied(false);
+      }, 2000);
+    } catch {
+      setIsBicCopied(false);
     }
   }
 
@@ -203,6 +217,35 @@ function AccountCard({ account }: AccountCardProps) {
               </svg>
 
               {isCopied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+
+          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:px-7">
+            <span className="text-sm font-medium text-slate-400">BIC</span>
+
+            <span className="font-mono text-sm tracking-wide text-slate-200">
+              {account.bic}
+            </span>
+
+            <button
+              type="button"
+              onClick={handleCopyBic}
+              className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              aria-label={isBicCopied ? 'BIC copied' : 'Copy BIC'}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <rect width="13" height="13" x="8" y="8" rx="2" />
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+              </svg>
+
+              {isBicCopied ? 'Copied' : 'Copy'}
             </button>
           </div>
 
