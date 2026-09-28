@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.domain.account.iban import generate_account_number, generate_iban
@@ -67,7 +68,9 @@ class AccountRepository:
     async def get_by_user_id(self, user_id: int) -> Account | None:
         """Return the account belonging to a user."""
         result = await self.session.execute(
-            select(Account).where(Account.user_id == user_id)
+            select(Account)
+            .options(selectinload(Account.institution))
+            .where(Account.user_id == user_id)
         )
 
         return result.scalar_one_or_none()

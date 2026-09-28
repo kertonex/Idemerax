@@ -21,13 +21,22 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 async def create_account(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-) -> Account:
+) -> AccountResponse:
     """Create a financial account for the authenticated user."""
     account_repository = AccountRepository(session)
     create_account_use_case = CreateAccount(account_repository)
 
-    return await create_account_use_case.execute(
+    account = await create_account_use_case.execute(
         user_id=current_user.id,
+    )
+
+    return AccountResponse(
+        id=account.id,
+        user_id=account.user_id,
+        account_number=account.account_number,
+        iban=account.iban,
+        bic=account.institution.bic,
+        balance=account.balance,
     )
 
 
@@ -38,11 +47,20 @@ async def create_account(
 async def get_my_account(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
-) -> Account:
+) -> AccountResponse:
     """Return the financial account belonging to the authenticated user."""
     account_repository = AccountRepository(session)
     get_my_account_use_case = GetMyAccount(account_repository)
 
-    return await get_my_account_use_case.execute(
+    account = await get_my_account_use_case.execute(
         user_id=current_user.id,
+    )
+
+    return AccountResponse(
+        id=account.id,
+        user_id=account.user_id,
+        account_number=account.account_number,
+        iban=account.iban,
+        bic=account.institution.bic,
+        balance=account.balance,
     )

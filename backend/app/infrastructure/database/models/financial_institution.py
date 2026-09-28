@@ -28,6 +28,12 @@ class FinancialInstitution(Base):
         unique=True,
     )
 
+    bic: Mapped[str] = mapped_column(
+        String(11),
+        nullable=False,
+        unique=True,
+    )
+
     accounts: Mapped[list["Account"]] = relationship(
         back_populates="institution",
     )

@@ -10,4 +10,5 @@ class AccountResponse(BaseModel):
     user_id: int
     account_number: str
     iban: str
+    bic: str
     balance: Decimal
