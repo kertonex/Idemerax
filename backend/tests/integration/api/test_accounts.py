@@ -69,6 +69,43 @@ async def test_create_account_creates_financial_account_for_authenticated_user()
 
 
 @pytest.mark.anyio
+async def test_create_account_ignores_client_provided_user_id() -> None:
+    """Create the account for the authenticated user regardless of client input."""
+    first_email = f"account-owner-{uuid4()}@example.com"
+    second_email = f"account-attacker-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        first_user = User(
+            email=first_email,
+            password_hash=hash_password("test-password"),
+        )
+        second_user = User(
+            email=second_email,
+            password_hash=hash_password("test-password"),
+        )
+        session.add_all([first_user, second_user])
+        await session.commit()
+
+        authenticated_user_id = first_user.id
+        other_user_id = second_user.id
+
+    access_token = create_access_token(str(authenticated_user_id))
+
+    response = client.post(
+        "/accounts",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"user_id": other_user_id},
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["user_id"] == authenticated_user_id
+    assert data["user_id"] != other_user_id
+
+
+@pytest.mark.anyio
 async def test_get_my_account_requires_authentication() -> None:
     """Reject account retrieval without authentication."""
     response = client.get("/accounts/me")
