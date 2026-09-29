@@ -10,8 +10,8 @@ from app.infrastructure.database.models.user import User
 
 
 @pytest.mark.anyio
-async def test_register_user_creates_user() -> None:
-    """Register a new user and return the created user."""
+async def test_register_user_creates_user_and_account() -> None:
+    """Register a new user and create their initial financial account."""
     user_repository = Mock()
     user_repository.get_by_email = AsyncMock(return_value=None)
 
@@ -22,7 +22,13 @@ async def test_register_user_creates_user() -> None:
     )
     user_repository.create = AsyncMock(return_value=created_user)
 
-    register_user = RegisterUser(user_repository)
+    account_repository = Mock()
+    account_repository.create = AsyncMock()
+
+    register_user = RegisterUser(
+        user_repository,
+        account_repository,
+    )
 
     with patch(
         "app.application.authentication.register_user.hash_password",
@@ -41,6 +47,10 @@ async def test_register_user_creates_user() -> None:
         email="user@example.com",
         password_hash="hashed-password",
     )
+    account_repository.create.assert_awaited_once_with(
+        user_id=created_user.id,
+    )
+
     assert result is created_user
 
 
@@ -59,7 +69,13 @@ async def test_register_user_rejects_existing_email() -> None:
     )
     user_repository.create = AsyncMock()
 
-    register_user = RegisterUser(user_repository)
+    account_repository = Mock()
+    account_repository.create = AsyncMock()
+
+    register_user = RegisterUser(
+        user_repository,
+        account_repository,
+    )
 
     with pytest.raises(
         RegistrationError,
@@ -71,6 +87,7 @@ async def test_register_user_rejects_existing_email() -> None:
         )
 
     user_repository.create.assert_not_awaited()
+    account_repository.create.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -86,7 +103,13 @@ async def test_register_user_hashes_password_before_creating_user() -> None:
         ),
     )
 
-    register_user = RegisterUser(user_repository)
+    account_repository = Mock()
+    account_repository.create = AsyncMock()
+
+    register_user = RegisterUser(
+        user_repository,
+        account_repository,
+    )
 
     with patch(
         "app.application.authentication.register_user.hash_password",
@@ -101,4 +124,7 @@ async def test_register_user_hashes_password_before_creating_user() -> None:
     user_repository.create.assert_awaited_once_with(
         email="user@example.com",
         password_hash="hashed-password",
+    )
+    account_repository.create.assert_awaited_once_with(
+        user_id=1,
     )

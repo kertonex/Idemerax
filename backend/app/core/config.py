@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_issuer: str = "idemerax"
     jwt_audience: str = "idemerax-api"
-    jwt_access_token_expire_minutes: int = 15
     refresh_session_expire_days: int = 30
+
+    idemerax_bank_code: str
 
     model_config = SettingsConfigDict(env_file=".env")
 

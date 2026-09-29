@@ -25,6 +25,8 @@ jobs:
       DATABASE_USER: test_user
       DATABASE_PASSWORD: test_password
 
+      IDEMERAX_BANK_CODE: 12345678
+
       JWT_PRIVATE_KEY_PATH: secrets/jwt-private.pem
       JWT_PUBLIC_KEY_PATH: secrets/jwt-public.pem
       JWT_ALGORITHM: RS256

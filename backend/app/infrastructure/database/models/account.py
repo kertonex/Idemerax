@@ -1,26 +1,56 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
+    from app.infrastructure.database.models.financial_institution import (
+        FinancialInstitution,
+    )
     from app.infrastructure.database.models.user import User
 
 
 class Account(Base):
-    """Represent a user account."""
+    """Represent a financial account belonging to a user."""
 
     __tablename__ = "accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
         index=True,
     )
+
+    institution_id: Mapped[int] = mapped_column(
+        ForeignKey("financial_institutions.id"),
+        nullable=False,
+        index=True,
+    )
+
+    account_number: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        unique=True,
+    )
+
+    iban: Mapped[str] = mapped_column(
+        String(22),
+        nullable=False,
+        unique=True,
+    )
+
     balance: Mapped[Decimal] = mapped_column(
         Numeric(19, 4),
         nullable=False,
@@ -28,5 +58,9 @@ class Account(Base):
     )
 
     user: Mapped["User"] = relationship(
+        back_populates="accounts",
+    )
+
+    institution: Mapped["FinancialInstitution"] = relationship(
         back_populates="accounts",
     )
