@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.infrastructure.database.models.financial_institution import (
         FinancialInstitution,
     )
+    from app.infrastructure.database.models.transaction import Transaction
     from app.infrastructure.database.models.user import User
 
 
@@ -63,4 +64,14 @@ class Account(Base):
 
     institution: Mapped["FinancialInstitution"] = relationship(
         back_populates="accounts",
+    )
+
+    source_transactions: Mapped[list["Transaction"]] = relationship(
+        foreign_keys="Transaction.source_account_id",
+        back_populates="source_account",
+    )
+
+    destination_transactions: Mapped[list["Transaction"]] = relationship(
+        foreign_keys="Transaction.destination_account_id",
+        back_populates="destination_account",
     )
