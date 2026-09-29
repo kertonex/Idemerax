@@ -430,6 +430,17 @@ http://localhost:8000/redoc
 | `POST` | `/auth/refresh` | Rotate the refresh session and issue a new access token |
 | `POST` | `/auth/logout` | Revoke the refresh session |
 | `GET` | `/auth/me` | Retrieve the authenticated user |
+
+### Current Account Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/accounts` | Create a financial account for the authenticated user |
+| `GET` | `/accounts/me` | Retrieve the authenticated user's financial account |
+
+Account ownership is derived from the authenticated user and enforced by the
+backend.
+
 | `GET` | `/health` | Backend health check |
 
 The interactive API documentation is the authoritative reference for request and response schemas.

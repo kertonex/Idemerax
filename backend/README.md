@@ -87,6 +87,7 @@ Current responsibilities include:
 
 -   FastAPI application configuration
 -   Authentication routes
+-   Account routes
 -   Authentication dependencies
 -   Request validation
 -   Response schemas
@@ -109,12 +110,34 @@ POST /auth/logout
 GET  /auth/me
 ```
 
+Current account endpoints are:
+
+``` text
+POST /accounts
+GET  /accounts/me
+```
+
 ------------------------------------------------------------------------
 
 ### 💼 Application Layer
 
-Application services contain authentication use cases independently from
-the HTTP layer.
+Application services contain authentication and account use cases independently
+from the HTTP layer.
+
+Current account use cases include:
+
+``` text
+app/application/accounts/
+├── create_account.py
+├── get_my_account.py
+└── ports.py
+```
+
+The account application layer is responsible for:
+
+-   Creating a financial account for the authenticated user
+-   Retrieving the authenticated user's account
+-   Defining the repository port required by account workflows
 
 Current authentication use cases include:
 
@@ -536,7 +559,16 @@ The `accounts` table contains:
 
 -   `id`
 -   `user_id`
+-   `institution_id`
+-   `account_number`
+-   `iban`
 -   `balance`
+-   `created_at`
+
+The account is associated with its authenticated owner through `user_id` and
+with a financial institution through `institution_id`.
+
+The account identifier and IBAN are unique.
 
 Balances use:
 
@@ -545,6 +577,9 @@ NUMERIC(19, 4)
 ```
 
 The account is associated with a user through a foreign key.
+
+The account is also associated with a financial institution that provides the
+institution name and BIC returned by the account API.
 
 ------------------------------------------------------------------------
 
@@ -633,6 +668,7 @@ Current repositories include:
 
 ``` text
 app/infrastructure/repositories/
+├── account.py
 ├── refresh_session.py
 └── user.py
 ```
@@ -760,6 +796,17 @@ Successful response:
 
 ------------------------------------------------------------------------
 
+### Account Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/accounts` | Create a financial account for the authenticated user |
+| `GET` | `/accounts/me` | Retrieve the authenticated user's financial account |
+
+Account ownership is derived from the authenticated user and enforced by the
+backend. Account-management operations do not directly modify the account
+balance.
+
 ## 🧪 Testing
 
 The backend uses pytest with asynchronous tests for database and API
@@ -799,10 +846,12 @@ Unit tests cover:
 Integration tests cover:
 
 -   Authentication API behavior
+-   Account API behavior
 -   CORS configuration
 -   Health checks
 -   Database persistence
--   Repository behavior
+-   Account repository behavior
+-   Authentication repository behavior
 -   Commit and rollback behavior
 -   Database transactions
 
@@ -1034,6 +1083,7 @@ backend/
 │   ├── api/
 │   │   ├── dependencies.py
 │   │   └── routes/
+│   │       ├── accounts.py
 │   │       └── authentication.py
 │   │
 │   ├── application/
@@ -1065,6 +1115,7 @@ backend/
 │   │   │   └── session.py
 │   │   ├── reliability/
 │   │   └── repositories/
+│   │       ├── account.py
 │   │       ├── refresh_session.py
 │   │       └── user.py
 │   │
