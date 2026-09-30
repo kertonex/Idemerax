@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { useAuth } from '../features/authentication/context/useAuth';
+import AccountsPage from '../pages/AccountsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
-import AccountsPage from '../pages/AccountsPage';
+import TransactionsPage from '../pages/TransactionsPage';
 import { getHealth } from '../shared/api/health';
 
 function DashboardPage() {
@@ -17,10 +18,6 @@ function DashboardPage() {
 
 function CardsPage() {
   return <h1 className="text-2xl font-semibold">Cards</h1>;
-}
-
-function TransactionsPage() {
-  return <h1 className="text-2xl font-semibold">Transactions</h1>;
 }
 
 function ReliabilityPage() {

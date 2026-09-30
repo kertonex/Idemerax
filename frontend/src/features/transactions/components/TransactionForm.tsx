@@ -1,0 +1,572 @@
+import { useState } from 'react';
+
+interface TransactionFormProps {
+  isSubmitting: boolean;
+  error: string | null;
+  onSubmit: (destinationIban: string, amount: string) => Promise<void>;
+  availableBalance: string | null;
+  isLoadingBalance: boolean;
+}
+
+const MAX_TRANSACTION_AMOUNT = 100000;
+
+function formatIbanInput(value: string): string {
+  return value
+    .replace(/\s+/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 22)
+    .replace(/(.{4})/g, '$1 ')
+    .trim();
+}
+
+function getRawIban(value: string): string {
+  return value.replace(/\s+/g, '');
+}
+
+function getIbanCountryCode(value: string): string {
+  return getRawIban(value).slice(0, 2);
+}
+
+function isGermanIban(value: string): boolean {
+  const countryCode = getIbanCountryCode(value);
+
+  return countryCode.length < 2 || countryCode === 'DE';
+}
+
+function isValidIbanLength(value: string): boolean {
+  return getRawIban(value).length === 22;
+}
+
+function normalizeAmount(value: string): string {
+  return value.replace(',', '.');
+}
+
+function getNumericAmount(value: string): number {
+  const normalized = normalizeAmount(value);
+
+  if (!normalized || normalized === '.') {
+    return Number.NaN;
+  }
+
+  return Number(normalized);
+}
+
+function hasValidAmountFormat(value: string): boolean {
+  return /^\d+([.,]\d{1,2})?$/.test(value);
+}
+
+function isValidAmount(value: string): boolean {
+  if (!value.trim() || !hasValidAmountFormat(value)) {
+    return false;
+  }
+
+  const numericValue = getNumericAmount(value);
+
+  return (
+    Number.isFinite(numericValue) &&
+    numericValue > 0 &&
+    numericValue <= MAX_TRANSACTION_AMOUNT
+  );
+}
+
+function hasTooManyDecimalPlaces(value: string): boolean {
+  return /[.,]\d{3,}/.test(value);
+}
+
+function hasMultipleDecimalSeparators(value: string): boolean {
+  return (value.match(/[.,]/g) ?? []).length > 1;
+}
+
+function sanitizeAmountInput(value: string): string {
+  return value.replace(/[^0-9.,]/g, '');
+}
+
+function formatBalance(balance: string | null): string {
+  if (balance === null) {
+    return '—';
+  }
+
+  const value = Number(balance);
+
+  if (!Number.isFinite(value)) {
+    return '—';
+  }
+
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function TransactionForm({
+  isSubmitting,
+  error,
+  onSubmit,
+  availableBalance,
+  isLoadingBalance,
+}: TransactionFormProps) {
+  const [destinationIban, setDestinationIban] = useState('');
+  const [amount, setAmount] = useState('');
+
+  const rawIban = getRawIban(destinationIban);
+  const ibanCountryCode = getIbanCountryCode(destinationIban);
+  const germanIban = isGermanIban(destinationIban);
+
+  const ibanReachedMaximumLength = rawIban.length === 22;
+
+  const ibanIsValid = germanIban && isValidIbanLength(destinationIban);
+
+  const amountExceedsMaximum =
+    hasValidAmountFormat(amount) &&
+    getNumericAmount(amount) > MAX_TRANSACTION_AMOUNT;
+
+  const amountHasTooManyDecimals = hasTooManyDecimalPlaces(amount);
+
+  const amountHasMultipleSeparators = hasMultipleDecimalSeparators(amount);
+
+  const amountIsValid = isValidAmount(amount);
+
+  const canSubmit = ibanIsValid && amountIsValid && !isSubmitting;
+
+  const showCountryError = ibanCountryCode.length === 2 && !germanIban;
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!canSubmit) {
+      return;
+    }
+
+    await onSubmit(getRawIban(destinationIban), normalizeAmount(amount));
+  }
+
+  function handleIbanChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setDestinationIban(formatIbanInput(event.target.value));
+  }
+
+  function handleAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setAmount(sanitizeAmountInput(event.target.value));
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 shadow-xl shadow-slate-950/30">
+      <div className="border-b border-slate-800 px-6 py-6 sm:px-7">
+        <div className="flex items-center gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600/15 ring-1 ring-blue-500/20">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5 text-blue-400"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <path
+                d="m21 3-7.5 18-3.75-7.75L2 9.5 21 3Z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              <path
+                d="M21 3 9.75 13.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-semibold text-white">New transfer</h2>
+
+            <p className="mt-1 text-sm text-slate-400">
+              Send money securely to another account.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-7 p-6 sm:p-7">
+        <div>
+          <div className="mb-2">
+            <label
+              htmlFor="destination-iban"
+              className="text-sm font-medium text-slate-300"
+            >
+              Recipient IBAN
+            </label>
+          </div>
+
+          <div
+            className={`flex h-[54px] overflow-hidden rounded-xl border bg-slate-900/80 transition focus-within:ring-2 ${
+              showCountryError
+                ? 'border-red-500/50 focus-within:border-red-500/60 focus-within:ring-red-500/10'
+                : destinationIban && ibanIsValid
+                  ? 'border-emerald-500/40 focus-within:border-emerald-500/60 focus-within:ring-emerald-500/10'
+                  : 'border-slate-700 focus-within:border-blue-500/60 focus-within:ring-blue-500/10'
+            }`}
+          >
+            <input
+              id="destination-iban"
+              type="text"
+              value={destinationIban}
+              onChange={handleIbanChange}
+              required
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              inputMode="text"
+              placeholder="DE00 0000 0000 0000 0000 00"
+              aria-describedby="destination-iban-help"
+              className="min-w-0 flex-1 border-0 bg-transparent px-4 text-base font-mono tracking-wide text-white outline-none placeholder:text-slate-600 focus:ring-0"
+            />
+
+            <div
+              className="flex w-[68px] shrink-0 items-center justify-center border-l border-slate-700"
+              aria-hidden="true"
+            >
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 transition ${
+                  showCountryError
+                    ? 'bg-red-500/15 text-red-400 ring-red-400/30'
+                    : destinationIban && ibanIsValid
+                      ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-400/30'
+                      : 'bg-blue-500/10 text-blue-400 ring-blue-400/20'
+                }`}
+              >
+                {showCountryError ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                ) : destinationIban && ibanIsValid ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="m5 12 4 4L19 6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 21a8 8 0 0 0-16 0" strokeLinecap="round" />
+
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {showCountryError ? (
+            <p
+              id="destination-iban-help"
+              className="mt-2 flex items-center gap-1.5 text-xs text-red-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Only German IBANs starting with DE are currently supported.
+            </p>
+          ) : ibanReachedMaximumLength ? (
+            <p
+              id="destination-iban-help"
+              className="mt-2 flex items-center gap-1.5 text-xs text-slate-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+
+                <path d="M12 8v4" strokeLinecap="round" />
+
+                <path d="M12 16h.01" strokeLinecap="round" />
+              </svg>
+              IBAN has reached the maximum length of 22 characters.
+            </p>
+          ) : (
+            <p
+              id="destination-iban-help"
+              className="mt-2 text-xs text-slate-500"
+            >
+              Enter the IBAN of the account receiving the transfer.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="transaction-amount"
+            className="mb-2 block text-sm font-medium text-slate-300"
+          >
+            Amount
+          </label>
+
+          <div
+            className={`flex h-[54px] overflow-hidden rounded-xl border bg-slate-900/80 transition focus-within:ring-2 ${
+              amountExceedsMaximum ||
+              amountHasTooManyDecimals ||
+              amountHasMultipleSeparators
+                ? 'border-red-500/50 focus-within:border-red-500/60 focus-within:ring-red-500/10'
+                : amount && amountIsValid
+                  ? 'border-emerald-500/40 focus-within:border-emerald-500/60 focus-within:ring-emerald-500/10'
+                  : 'border-slate-700 focus-within:border-blue-500/60 focus-within:ring-blue-500/10'
+            }`}
+          >
+            <div className="flex w-[68px] shrink-0 items-center justify-center border-r border-slate-700">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold ring-1 ${
+                  amountExceedsMaximum ||
+                  amountHasTooManyDecimals ||
+                  amountHasMultipleSeparators
+                    ? 'bg-red-500/15 text-red-400 ring-red-400/30'
+                    : amount && amountIsValid
+                      ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-400/30'
+                      : 'bg-blue-500/10 text-blue-400 ring-blue-400/20'
+                }`}
+              >
+                €
+              </div>
+            </div>
+
+            <input
+              id="transaction-amount"
+              type="text"
+              value={amount}
+              onChange={handleAmountChange}
+              required
+              inputMode="decimal"
+              placeholder="0,00"
+              aria-describedby="transaction-amount-help"
+              className="min-w-0 flex-1 border-0 bg-transparent px-4 text-base text-white outline-none placeholder:text-slate-600 focus:ring-0"
+            />
+
+            <div className="flex w-[72px] shrink-0 items-center justify-center border-l border-slate-700 text-sm font-semibold text-slate-400">
+              EUR
+            </div>
+          </div>
+
+          {amountExceedsMaximum ? (
+            <p
+              id="transaction-amount-help"
+              className="mt-2 flex items-center gap-1.5 text-xs text-red-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Amount exceeds the transfer limit of €100,000.00.
+            </p>
+          ) : amountHasTooManyDecimals ? (
+            <p
+              id="transaction-amount-help"
+              className="mt-2 flex items-center gap-1.5 text-xs text-red-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Please enter an amount with no more than two decimal places.
+            </p>
+          ) : amountHasMultipleSeparators ? (
+            <p
+              id="transaction-amount-help"
+              className="mt-2 flex items-center gap-1.5 text-xs text-red-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Please enter a valid amount.
+            </p>
+          ) : (
+            <p
+              id="transaction-amount-help"
+              className="mt-2 text-xs text-slate-500"
+            >
+              Enter the amount to transfer.
+            </p>
+          )}
+
+          <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-800/80">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="6" width="18" height="14" rx="2" />
+
+                  <path d="M3 9h18" strokeLinecap="round" />
+
+                  <path d="M16 14h2" strokeLinecap="round" />
+                </svg>
+              </div>
+
+              <span className="text-xs text-slate-500">Available balance</span>
+            </div>
+
+            {isLoadingBalance ? (
+              <span
+                className="inline-block h-4 w-20 animate-pulse rounded-md bg-slate-700/70"
+                aria-label="Loading available balance"
+              />
+            ) : (
+              <span className="text-sm font-medium tabular-nums text-slate-300">
+                {formatBalance(availableBalance)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="mt-0.5 h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+
+              <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
+            </svg>
+
+            <span>{error}</span>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-xl border border-blue-400/30 bg-blue-600 px-5 text-base font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/50 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+        >
+          {isSubmitting ? (
+            <>
+              <svg
+                className="h-5 w-5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  className="opacity-25"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+
+                <path
+                  d="M21 12a9 9 0 0 1-9 9"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Processing transfer...
+            </>
+          ) : (
+            <>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                aria-hidden="true"
+              >
+                <path
+                  d="M22 2 11 13"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                <path
+                  d="m22 2-7 20-4-9-9-4L22 2Z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Send money
+            </>
+          )}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+export default TransactionForm;
