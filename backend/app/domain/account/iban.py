@@ -2,6 +2,7 @@ import secrets
 
 GERMAN_COUNTRY_CODE = "DE"
 GERMAN_COUNTRY_NUMERIC = "1314"
+GERMAN_IBAN_LENGTH = 22
 ACCOUNT_NUMBER_UPPER_BOUND = 10_000_000_000
 
 
@@ -26,3 +27,23 @@ def generate_iban(
     check_digits = 98 - remainder
 
     return f"{GERMAN_COUNTRY_CODE}{check_digits:02d}{bban}"
+
+
+def is_valid_iban(iban: str) -> bool:
+    """Return whether an IBAN has a valid German format and checksum."""
+    normalized_iban = "".join(iban.split()).upper()
+
+    if len(normalized_iban) != GERMAN_IBAN_LENGTH:
+        return False
+
+    if not normalized_iban.startswith(GERMAN_COUNTRY_CODE):
+        return False
+
+    if not normalized_iban[2:].isdigit():
+        return False
+
+    rearranged_iban = (
+        f"{normalized_iban[4:]}{GERMAN_COUNTRY_NUMERIC}{normalized_iban[2:4]}"
+    )
+
+    return int(rearranged_iban) % 97 == 1

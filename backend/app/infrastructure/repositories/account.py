@@ -67,7 +67,7 @@ class AccountRepository:
         return result.scalar_one_or_none()
 
     async def get_by_user_id(self, user_id: int) -> Account | None:
-        """Return the account belonging to a user."""
+        """Return the account belonging to the user."""
         result = await self.session.execute(
             select(Account)
             .options(selectinload(Account.institution))
@@ -75,3 +75,23 @@ class AccountRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def get_by_iban(self, iban: str) -> Account | None:
+        """Return an account matching the IBAN."""
+        result = await self.session.execute(select(Account).where(Account.iban == iban))
+
+        return result.scalar_one_or_none()
+
+    async def lock_for_transfer(
+        self,
+        account_ids: list[int],
+    ) -> list[Account]:
+        """Lock and return accounts for an atomic transfer."""
+        result = await self.session.execute(
+            select(Account)
+            .where(Account.id.in_(account_ids))
+            .order_by(Account.id)
+            .with_for_update()
+        )
+
+        return list(result.scalars().all())
