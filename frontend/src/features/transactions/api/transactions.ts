@@ -5,6 +5,12 @@ export type TransactionCreateRequest = {
   amount: string;
 };
 
+export type IbanBankDetails = {
+  bank_code: string;
+  bank_name: string;
+  bic: string;
+};
+
 export type Transaction = {
   id: number;
   created_at: string;
@@ -14,6 +20,20 @@ export type Transaction = {
   transaction_type: string;
   status: string;
 };
+
+export function getIbanBankDetails(
+  accessToken: string,
+  iban: string,
+): Promise<IbanBankDetails> {
+  return apiClient<IbanBankDetails>(
+    `/transactions/bank-details?iban=${encodeURIComponent(iban)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+}
 
 export function createTransaction(
   accessToken: string,

@@ -142,6 +142,7 @@ function TransactionsPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <TransactionForm
+            accessToken={accessToken}
             isSubmitting={isSubmitting}
             error={error}
             onSubmit={handleTransaction}

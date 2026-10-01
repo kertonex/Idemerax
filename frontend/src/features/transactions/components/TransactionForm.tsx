@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { getIbanBankDetails, type IbanBankDetails } from '../api/transactions';
 
 interface TransactionFormProps {
   isSubmitting: boolean;
@@ -6,6 +8,7 @@ interface TransactionFormProps {
   onSubmit: (destinationIban: string, amount: string) => Promise<void>;
   availableBalance: string | null;
   isLoadingBalance: boolean;
+  accessToken: string | null;
 }
 
 const MAX_TRANSACTION_AMOUNT = 100000;
@@ -107,9 +110,13 @@ function TransactionForm({
   onSubmit,
   availableBalance,
   isLoadingBalance,
+  accessToken,
 }: TransactionFormProps) {
   const [destinationIban, setDestinationIban] = useState('');
   const [amount, setAmount] = useState('');
+  const [bankDetails, setBankDetails] = useState<IbanBankDetails | null>(null);
+  const [isLoadingBankDetails, setIsLoadingBankDetails] = useState(false);
+  const [bankDetailsError, setBankDetailsError] = useState<string | null>(null);
 
   const rawIban = getRawIban(destinationIban);
   const ibanCountryCode = getIbanCountryCode(destinationIban);
@@ -133,6 +140,50 @@ function TransactionForm({
 
   const showCountryError = ibanCountryCode.length === 2 && !germanIban;
 
+  useEffect(() => {
+    if (!accessToken || !ibanIsValid) {
+      return;
+    }
+
+    const token = accessToken;
+    const iban = rawIban;
+
+    let isMounted = true;
+
+    async function loadBankDetails(): Promise<void> {
+      try {
+        setIsLoadingBankDetails(true);
+        setBankDetails(null);
+        setBankDetailsError(null);
+
+        const details = await getIbanBankDetails(token, iban);
+
+        if (isMounted) {
+          setBankDetails(details);
+        }
+      } catch (bankDetailsLoadingError) {
+        if (isMounted) {
+          setBankDetails(null);
+          setBankDetailsError(
+            bankDetailsLoadingError instanceof Error
+              ? bankDetailsLoadingError.message
+              : 'Unable to identify the bank.',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingBankDetails(false);
+        }
+      }
+    }
+
+    void loadBankDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, ibanIsValid, rawIban]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -144,7 +195,15 @@ function TransactionForm({
   }
 
   function handleIbanChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setDestinationIban(formatIbanInput(event.target.value));
+    const formattedIban = formatIbanInput(event.target.value);
+    const formattedIbanIsGerman = isGermanIban(formattedIban);
+    const formattedIbanIsValid =
+      formattedIbanIsGerman && isValidIbanLength(formattedIban);
+
+    setDestinationIban(formattedIban);
+    setBankDetails(null);
+    setBankDetailsError(null);
+    setIsLoadingBankDetails(Boolean(accessToken && formattedIbanIsValid));
   }
 
   function handleAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -329,6 +388,85 @@ function TransactionForm({
             >
               Enter the IBAN of the account receiving the transfer.
             </p>
+          )}
+
+          {ibanIsValid && accessToken && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
+              {isLoadingBankDetails ? (
+                <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+                  <div className="space-y-2">
+                    <div className="h-4 w-28 animate-pulse rounded bg-slate-800" />
+
+                    <div className="h-3 w-36 animate-pulse rounded bg-slate-800" />
+                  </div>
+
+                  <div className="h-7 w-28 animate-pulse rounded-full bg-slate-800" />
+                </div>
+              ) : bankDetails ? (
+                <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 ring-1 ring-blue-500/20">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5 text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 18h18M4 7l8-4 8 4v2H4V7Z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-100">
+                        {bankDetails.bank_name}
+                      </p>
+
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        <span className="font-medium uppercase tracking-wide text-slate-500">
+                          BIC
+                        </span>
+
+                        <span className="h-3.5 w-px bg-slate-700" />
+
+                        <span className="font-mono tracking-wide text-slate-400">
+                          {bankDetails.bic}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400/15">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-2.5 w-2.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="m5 12 4 4L19 6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    Bank identified
+                  </span>
+                </div>
+              ) : bankDetailsError ? (
+                <p className="px-4 py-3.5 text-xs text-red-400">
+                  {bankDetailsError}
+                </p>
+              ) : null}
+            </div>
           )}
         </div>
 
