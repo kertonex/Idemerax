@@ -14,7 +14,9 @@ from app.main import app
 
 client = TestClient(app)
 
+
 VALID_IBAN = "DE89370400440532013000"
+IDEMERAX_IBAN = "DE87123456781234567890"
 
 
 async def create_user_with_account(
@@ -38,6 +40,55 @@ async def create_user_with_account(
         await session.commit()
 
         return user.id, account
+
+
+@pytest.mark.anyio
+async def test_identify_iban_bank_requires_authentication() -> None:
+    """Reject IBAN bank identification without authentication."""
+    response = client.get(
+        "/transactions/bank-details",
+        params={"iban": IDEMERAX_IBAN},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_identify_iban_bank_returns_idemerax_details() -> None:
+    """Return Idemerax bank details for a valid Idemerax IBAN."""
+    user_id, _ = await create_user_with_account()
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.get(
+        "/transactions/bank-details",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"iban": IDEMERAX_IBAN},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "bank_code": "12345678",
+        "bank_name": "Idemerax",
+        "bic": "IDEMDEFFXXX",
+    }
+
+
+@pytest.mark.anyio
+async def test_identify_iban_bank_rejects_unknown_bank() -> None:
+    """Reject a valid German IBAN that does not belong to Idemerax."""
+    user_id, _ = await create_user_with_account()
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.get(
+        "/transactions/bank-details",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"iban": "DE89370400440532013000"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "The provided IBAN does not belong to Idemerax."
 
 
 @pytest.mark.anyio
