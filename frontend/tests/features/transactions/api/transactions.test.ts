@@ -2,8 +2,55 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createTransaction,
+  getIbanBankDetails,
   type Transaction,
 } from '../../../../src/features/transactions/api/transactions';
+
+describe('getIbanBankDetails', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends an authenticated IBAN bank identification request', async () => {
+    const bankDetails = {
+      bank_code: '12345678',
+      bank_name: 'Idemerax',
+      bic: 'IDEMDEFFXXX',
+    };
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(bankDetails), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const result = await getIbanBankDetails(
+      'test-access-token',
+      'DE87123456781234567890',
+    );
+
+    expect(result).toEqual(bankDetails);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url, options] = fetchMock.mock.calls[0];
+
+    expect(url).toBe(
+      'http://localhost:8000/transactions/bank-details?iban=DE87123456781234567890',
+    );
+
+    expect(options).toMatchObject({
+      credentials: 'include',
+    });
+
+    expect(new Headers(options?.headers).get('Authorization')).toBe(
+      'Bearer test-access-token',
+    );
+  });
+});
 
 describe('createTransaction', () => {
   afterEach(() => {

@@ -1,8 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { getIbanBankDetails } from '../../../src/features/transactions/api/transactions';
 
 import TransactionForm from '../../../src/features/transactions/components/TransactionForm';
+
+vi.mock('../../../src/features/transactions/api/transactions', () => ({
+  getIbanBankDetails: vi.fn(),
+}));
 
 const VALID_IBAN = 'DE89370400440532013000';
 
@@ -11,13 +19,17 @@ function renderTransactionForm(
 ) {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
 
+  const { accessToken = 'test-access-token', ...remainingOverrides } =
+    overrides;
+
   const props: React.ComponentProps<typeof TransactionForm> = {
+    accessToken,
     isSubmitting: false,
     error: null,
     onSubmit,
     availableBalance: '1000.0000',
     isLoadingBalance: false,
-    ...overrides,
+    ...remainingOverrides,
   };
 
   return {
@@ -27,6 +39,16 @@ function renderTransactionForm(
 }
 
 describe('TransactionForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(getIbanBankDetails).mockResolvedValue({
+      bank_code: '12345678',
+      bank_name: 'Idemerax',
+      bic: 'IDEMDEFFXXX',
+    });
+  });
+
   it('renders the transfer form', () => {
     renderTransactionForm();
 
@@ -86,6 +108,78 @@ describe('TransactionForm', () => {
     expect(ibanInput).toHaveValue('DE89 3704 0044 0532 0130 00');
   });
 
+  it('identifies the bank for a valid Idemerax IBAN', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm();
+
+    await user.type(
+      screen.getByLabelText('Recipient IBAN'),
+      'DE87123456781234567890',
+    );
+
+    expect(await screen.findByText('Idemerax')).toBeInTheDocument();
+
+    expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
+    expect(screen.getByText('Bank identified')).toBeInTheDocument();
+
+    expect(getIbanBankDetails).toHaveBeenCalledWith(
+      'test-access-token',
+      'DE87123456781234567890',
+    );
+  });
+
+  it('shows the bank identification loading state', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getIbanBankDetails).mockImplementation(
+      () => new Promise(() => {}),
+    );
+
+    renderTransactionForm();
+
+    await user.type(
+      screen.getByLabelText('Recipient IBAN'),
+      'DE87123456781234567890',
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Bank identified')).not.toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('IDEMDEFFXXX')).not.toBeInTheDocument();
+  });
+
+  it('shows an error when the IBAN does not belong to Idemerax', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(getIbanBankDetails).mockRejectedValue(
+      new Error('The provided IBAN does not belong to Idemerax.'),
+    );
+
+    renderTransactionForm();
+
+    await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
+
+    expect(
+      await screen.findByText('The provided IBAN does not belong to Idemerax.'),
+    ).toBeInTheDocument();
+
+    expect(screen.queryByText('Bank identified')).not.toBeInTheDocument();
+  });
+
+  it('does not identify a bank when no access token is available', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm({
+      accessToken: null,
+    });
+
+    await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
+
+    expect(getIbanBankDetails).not.toHaveBeenCalled();
+  });
+
   it('accepts a valid German IBAN', async () => {
     const user = userEvent.setup();
 
@@ -116,6 +210,7 @@ describe('TransactionForm', () => {
     ).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
+    expect(getIbanBankDetails).not.toHaveBeenCalled();
   });
 
   it('rejects an IBAN that is shorter than the required length', async () => {
@@ -128,6 +223,7 @@ describe('TransactionForm', () => {
     await user.type(ibanInput, 'DE893704004405');
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
+    expect(getIbanBankDetails).not.toHaveBeenCalled();
   });
 
   it('rejects an amount with more than two decimal places', async () => {

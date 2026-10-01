@@ -2,13 +2,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetMyAccount, mockCreateTransaction, mockUseAuth } = vi.hoisted(
-  () => ({
-    mockGetMyAccount: vi.fn(),
-    mockCreateTransaction: vi.fn(),
-    mockUseAuth: vi.fn(),
-  }),
-);
+const {
+  mockGetMyAccount,
+  mockCreateTransaction,
+  mockGetIbanBankDetails,
+  mockUseAuth,
+} = vi.hoisted(() => ({
+  mockGetMyAccount: vi.fn(),
+  mockCreateTransaction: vi.fn(),
+  mockGetIbanBankDetails: vi.fn(),
+  mockUseAuth: vi.fn(),
+}));
 
 vi.mock('../../src/features/accounts/api/accounts', () => ({
   getMyAccount: mockGetMyAccount,
@@ -16,6 +20,7 @@ vi.mock('../../src/features/accounts/api/accounts', () => ({
 
 vi.mock('../../src/features/transactions/api/transactions', () => ({
   createTransaction: mockCreateTransaction,
+  getIbanBankDetails: mockGetIbanBankDetails,
 }));
 
 vi.mock('../../src/features/authentication/context/useAuth', () => ({
@@ -32,6 +37,12 @@ describe('TransactionsPage', () => {
 
     mockUseAuth.mockReturnValue({
       accessToken: 'test-access-token',
+    });
+
+    mockGetIbanBankDetails.mockResolvedValue({
+      bank_code: '12345678',
+      bank_name: 'Idemerax',
+      bic: 'IDEMDEFFXXX',
     });
   });
 
@@ -58,6 +69,41 @@ describe('TransactionsPage', () => {
 
     expect(mockGetMyAccount).toHaveBeenCalledOnce();
     expect(mockGetMyAccount).toHaveBeenCalledWith('test-access-token');
+  });
+
+  it('identifies the recipient bank after entering a valid IBAN', async () => {
+    const user = userEvent.setup();
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.type(
+      screen.getByLabelText('Recipient IBAN'),
+      'DE87123456781234567890',
+    );
+
+    expect(await screen.findByText('Idemerax')).toBeInTheDocument();
+
+    expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
+    expect(screen.getByText('Bank identified')).toBeInTheDocument();
+
+    expect(mockGetIbanBankDetails).toHaveBeenCalledWith(
+      'test-access-token',
+      'DE87123456781234567890',
+    );
   });
 
   it('creates a transaction and refreshes the account balance', async () => {
@@ -282,5 +328,6 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Not authenticated.')).toBeInTheDocument();
 
     expect(mockGetMyAccount).not.toHaveBeenCalled();
+    expect(mockGetIbanBankDetails).not.toHaveBeenCalled();
   });
 });
