@@ -11,6 +11,14 @@ class TransactionCreateRequest(BaseModel):
     amount: Decimal = Field(gt=0, max_digits=19, decimal_places=4)
 
 
+class IbanBankIdentificationResponse(BaseModel):
+    """Represent Idemerax bank information resolved from an IBAN."""
+
+    bank_code: str
+    bank_name: str
+    bic: str
+
+
 class TransactionResponse(BaseModel):
     """Represent a transaction returned by the API."""
 
