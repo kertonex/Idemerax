@@ -26,6 +26,7 @@ class TransactionProcessing:
         user_id: int,
         destination_iban: str,
         amount: Decimal,
+        reference: str | None = None,
     ) -> Transaction:
         """Process an internal transfer for an authenticated user."""
         if not amount.is_finite() or amount <= 0:
@@ -45,6 +46,14 @@ class TransactionProcessing:
         if not is_valid_iban(normalized_destination_iban):
             raise TransactionProcessingError(
                 "Invalid destination IBAN.",
+            )
+
+        normalized_reference = reference.strip() if reference else None
+        normalized_reference = normalized_reference or None
+
+        if normalized_reference is not None and len(normalized_reference) > 140:
+            raise TransactionProcessingError(
+                "Transaction reference must not exceed 140 characters.",
             )
 
         source_account = await self.account_repository.get_by_user_id(
@@ -93,4 +102,5 @@ class TransactionProcessing:
             amount=amount,
             transaction_type="TRANSFER",
             status="COMPLETED",
+            reference=normalized_reference,
         )

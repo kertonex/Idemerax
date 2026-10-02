@@ -38,9 +38,7 @@ async def identify_iban_bank_details(
     """Return Idemerax bank information for a valid IBAN."""
     del current_user
 
-    financial_institution_repository = FinancialInstitutionRepository(
-        session,
-    )
+    financial_institution_repository = FinancialInstitutionRepository(session)
 
     try:
         bank_information = await identify_iban_bank(
@@ -83,6 +81,7 @@ async def create_transaction(
             user_id=current_user.id,
             destination_iban=transaction_data.destination_iban,
             amount=transaction_data.amount,
+            reference=transaction_data.reference,
         )
     except TransactionProcessingError as exc:
         raise HTTPException(
@@ -98,4 +97,5 @@ async def create_transaction(
         amount=transaction.amount,
         transaction_type=transaction.transaction_type,
         status=transaction.status,
+        reference=transaction.reference,
     )

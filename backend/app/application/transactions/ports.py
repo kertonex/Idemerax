@@ -14,6 +14,7 @@ class TransactionRepositoryPort(Protocol):
         amount: Decimal,
         transaction_type: str,
         status: str,
+        reference: str | None = None,
     ) -> Transaction:
         """Create and return a transaction without committing."""
         ...

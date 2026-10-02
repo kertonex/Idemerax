@@ -41,6 +41,11 @@ class Transaction(Base):
         nullable=False,
     )
 
+    reference: Mapped[str | None] = mapped_column(
+        String(140),
+        nullable=True,
+    )
+
     transaction_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,

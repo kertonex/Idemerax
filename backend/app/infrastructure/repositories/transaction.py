@@ -18,6 +18,7 @@ class TransactionRepository:
         amount: Decimal,
         transaction_type: str,
         status: str,
+        reference: str | None = None,
     ) -> Transaction:
         """Create and return a transaction without committing the session."""
         transaction = Transaction(
@@ -26,6 +27,7 @@ class TransactionRepository:
             amount=amount,
             transaction_type=transaction_type,
             status=status,
+            reference=reference,
         )
 
         self.session.add(transaction)
