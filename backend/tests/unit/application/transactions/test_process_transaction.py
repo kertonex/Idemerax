@@ -90,6 +90,126 @@ async def test_process_transaction_successfully_transfers_funds(
         amount=Decimal("125.50"),
         transaction_type="TRANSFER",
         status="COMPLETED",
+        reference=None,
+    )
+
+
+@pytest.mark.anyio
+async def test_process_transaction_saves_reference(
+    transaction_processing: TransactionProcessing,
+    account_repository: AsyncMock,
+    transaction_repository: AsyncMock,
+) -> None:
+    source_account = create_account(1, "1000.00")
+    destination_account = create_account(2, "250.00")
+    account_repository.get_by_user_id.return_value = source_account
+    account_repository.get_by_iban.return_value = destination_account
+    account_repository.lock_for_transfer.return_value = [
+        source_account,
+        destination_account,
+    ]
+
+    await transaction_processing.execute(
+        user_id=10,
+        destination_iban=VALID_IBAN,
+        amount=Decimal("100.00"),
+        reference="  Invoice 2026-001  ",
+    )
+
+    transaction_repository.create.assert_awaited_once_with(
+        source_account_id=1,
+        destination_account_id=2,
+        amount=Decimal("100.00"),
+        transaction_type="TRANSFER",
+        status="COMPLETED",
+        reference="Invoice 2026-001",
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("reference", [None, "", "   ", "\t\n"])
+async def test_process_transaction_accepts_missing_or_blank_reference(
+    reference: str | None,
+    transaction_processing: TransactionProcessing,
+    account_repository: AsyncMock,
+    transaction_repository: AsyncMock,
+) -> None:
+    source_account = create_account(1, "1000.00")
+    destination_account = create_account(2, "250.00")
+    account_repository.get_by_user_id.return_value = source_account
+    account_repository.get_by_iban.return_value = destination_account
+    account_repository.lock_for_transfer.return_value = [
+        source_account,
+        destination_account,
+    ]
+
+    await transaction_processing.execute(
+        user_id=10,
+        destination_iban=VALID_IBAN,
+        amount=Decimal("100.00"),
+        reference=reference,
+    )
+
+    transaction_repository.create.assert_awaited_once_with(
+        source_account_id=1,
+        destination_account_id=2,
+        amount=Decimal("100.00"),
+        transaction_type="TRANSFER",
+        status="COMPLETED",
+        reference=None,
+    )
+
+
+@pytest.mark.anyio
+async def test_process_transaction_rejects_reference_over_140_characters(
+    transaction_processing: TransactionProcessing,
+    account_repository: AsyncMock,
+) -> None:
+    with pytest.raises(
+        TransactionProcessingError,
+        match="Transaction reference must not exceed 140 characters.",
+    ):
+        await transaction_processing.execute(
+            user_id=10,
+            destination_iban=VALID_IBAN,
+            amount=Decimal("100.00"),
+            reference="R" * 141,
+        )
+
+    account_repository.get_by_user_id.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_process_transaction_accepts_reference_of_140_characters(
+    transaction_processing: TransactionProcessing,
+    account_repository: AsyncMock,
+    transaction_repository: AsyncMock,
+) -> None:
+    source_account = create_account(1, "1000.00")
+    destination_account = create_account(2, "250.00")
+    reference = "R" * 140
+
+    account_repository.get_by_user_id.return_value = source_account
+    account_repository.get_by_iban.return_value = destination_account
+    account_repository.lock_for_transfer.return_value = [
+        source_account,
+        destination_account,
+    ]
+
+    await transaction_processing.execute(
+        user_id=10,
+        destination_iban=VALID_IBAN,
+        amount=Decimal("100.00"),
+        reference=reference,
+    )
+
+    transaction_repository.create.assert_awaited_once_with(
+        source_account_id=1,
+        destination_account_id=2,
+        amount=Decimal("100.00"),
+        transaction_type="TRANSFER",
+        status="COMPLETED",
+        reference=reference,
     )
 
 
