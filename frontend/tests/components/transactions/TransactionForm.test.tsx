@@ -1,11 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-
 import userEvent from '@testing-library/user-event';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getIbanBankDetails } from '../../../src/features/transactions/api/transactions';
-
 import TransactionForm from '../../../src/features/transactions/components/TransactionForm';
 
 vi.mock('../../../src/features/transactions/api/transactions', () => ({
@@ -57,8 +54,8 @@ describe('TransactionForm', () => {
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText('Recipient IBAN')).toBeInTheDocument();
-
     expect(screen.getByLabelText('Amount')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reference (optional)')).toBeInTheDocument();
 
     expect(
       screen.getByRole('button', { name: 'Send money' }),
@@ -119,7 +116,6 @@ describe('TransactionForm', () => {
     );
 
     expect(await screen.findByText('Idemerax')).toBeInTheDocument();
-
     expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
     expect(screen.getByText('Bank identified')).toBeInTheDocument();
 
@@ -185,11 +181,8 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const ibanInput = screen.getByLabelText('Recipient IBAN');
-    const amountInput = screen.getByLabelText('Amount');
-
-    await user.type(ibanInput, VALID_IBAN);
-    await user.type(amountInput, '250');
+    await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
+    await user.type(screen.getByLabelText('Amount'), '250');
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeEnabled();
   });
@@ -199,9 +192,10 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const ibanInput = screen.getByLabelText('Recipient IBAN');
-
-    await user.type(ibanInput, 'GB82WEST12345698765432');
+    await user.type(
+      screen.getByLabelText('Recipient IBAN'),
+      'GB82WEST12345698765432',
+    );
 
     expect(
       screen.getByText(
@@ -218,9 +212,7 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const ibanInput = screen.getByLabelText('Recipient IBAN');
-
-    await user.type(ibanInput, 'DE893704004405');
+    await user.type(screen.getByLabelText('Recipient IBAN'), 'DE893704004405');
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
     expect(getIbanBankDetails).not.toHaveBeenCalled();
@@ -231,9 +223,7 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const amountInput = screen.getByLabelText('Amount');
-
-    await user.type(amountInput, '100.123');
+    await user.type(screen.getByLabelText('Amount'), '100.123');
 
     expect(
       screen.getByText(
@@ -249,9 +239,7 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const amountInput = screen.getByLabelText('Amount');
-
-    await user.type(amountInput, '100,50.25');
+    await user.type(screen.getByLabelText('Amount'), '100,50.25');
 
     expect(
       screen.getByText('Please enter a valid amount.'),
@@ -265,9 +253,7 @@ describe('TransactionForm', () => {
 
     renderTransactionForm();
 
-    const amountInput = screen.getByLabelText('Amount');
-
-    await user.type(amountInput, '100000.01');
+    await user.type(screen.getByLabelText('Amount'), '100000.01');
 
     expect(
       screen.getByText('Amount exceeds the transfer limit of €100,000.00.'),
@@ -298,19 +284,32 @@ describe('TransactionForm', () => {
     expect(submitButton).toBeEnabled();
   });
 
-  it('submits the normalized IBAN and amount', async () => {
+  it('submits the normalized IBAN, amount, and null reference when empty', async () => {
     const user = userEvent.setup();
 
     const { onSubmit } = renderTransactionForm();
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250,50');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
     expect(onSubmit).toHaveBeenCalledOnce();
-    expect(onSubmit).toHaveBeenCalledWith(VALID_IBAN, '250.50');
+    expect(onSubmit).toHaveBeenCalledWith(VALID_IBAN, '250.50', null);
+  });
+
+  it('trims the transaction reference before submitting', async () => {
+    const user = userEvent.setup();
+
+    const { onSubmit } = renderTransactionForm();
+
+    await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
+    await user.type(screen.getByLabelText('Amount'), '250');
+    await user.type(screen.getByLabelText('Reference (optional)'), '  Rent  ');
+
+    await user.click(screen.getByRole('button', { name: 'Send money' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(VALID_IBAN, '250', 'Rent');
   });
 
   it('sanitizes unsupported characters from the amount input', async () => {
@@ -353,11 +352,9 @@ describe('TransactionForm', () => {
     const { onSubmit } = renderTransactionForm();
 
     await user.type(screen.getByLabelText('Recipient IBAN'), 'DE893704004405');
-
     await user.type(screen.getByLabelText('Amount'), '250');
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
-
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

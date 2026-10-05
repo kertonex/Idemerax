@@ -64,6 +64,7 @@ describe('createTransaction', () => {
       source_account_id: 10,
       destination_account_id: 20,
       amount: '100.5000',
+      reference: null,
       transaction_type: 'TRANSFER',
       status: 'COMPLETED',
     };
@@ -80,6 +81,7 @@ describe('createTransaction', () => {
     const result = await createTransaction('test-access-token', {
       destination_iban: 'DE89370400440532013000',
       amount: '100.5000',
+      reference: null,
     });
 
     expect(result).toEqual(transaction);
@@ -106,6 +108,7 @@ describe('createTransaction', () => {
       JSON.stringify({
         destination_iban: 'DE89370400440532013000',
         amount: '100.5000',
+        reference: null,
       }),
     );
   });

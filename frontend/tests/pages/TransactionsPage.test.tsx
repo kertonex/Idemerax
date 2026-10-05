@@ -137,6 +137,7 @@ describe('TransactionsPage', () => {
       amount: '250.0000',
       transaction_type: 'TRANSFER',
       status: 'COMPLETED',
+      reference: null,
     });
 
     render(<TransactionsPage />);
@@ -155,6 +156,7 @@ describe('TransactionsPage', () => {
       expect(mockCreateTransaction).toHaveBeenCalledWith('test-access-token', {
         destination_iban: VALID_IBAN,
         amount: '250',
+        reference: null,
       });
     });
 
@@ -169,6 +171,65 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('250,00 €')).toBeInTheDocument();
     expect(screen.getByText('#42')).toBeInTheDocument();
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+  });
+
+  it('creates a transaction with a reference', async () => {
+    const user = userEvent.setup();
+
+    mockGetMyAccount
+      .mockResolvedValueOnce({
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '1000.0000',
+      })
+      .mockResolvedValueOnce({
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '750.0000',
+      });
+
+    mockCreateTransaction.mockResolvedValueOnce({
+      id: 43,
+      created_at: '2026-10-02T12:00:00Z',
+      source_account_id: 1,
+      destination_account_id: 2,
+      amount: '250.0000',
+      transaction_type: 'TRANSFER',
+      status: 'COMPLETED',
+      reference: 'Rent',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
+
+    await user.type(screen.getByLabelText('Amount'), '250');
+
+    await user.type(screen.getByLabelText('Reference (optional)'), 'Rent');
+
+    await user.click(screen.getByRole('button', { name: 'Send money' }));
+
+    await waitFor(() => {
+      expect(mockCreateTransaction).toHaveBeenCalledWith('test-access-token', {
+        destination_iban: VALID_IBAN,
+        amount: '250',
+        reference: 'Rent',
+      });
+    });
+
+    expect(screen.getByText('Transfer completed')).toBeInTheDocument();
   });
 
   it('displays the transaction error when processing fails', async () => {
@@ -296,6 +357,7 @@ describe('TransactionsPage', () => {
       amount: 'invalid-amount',
       transaction_type: 'TRANSFER',
       status: 'COMPLETED',
+      reference: null,
     });
 
     render(<TransactionsPage />);
