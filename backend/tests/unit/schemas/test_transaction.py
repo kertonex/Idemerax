@@ -15,7 +15,63 @@ def test_transaction_create_request_accepts_valid_data() -> None:
     )
 
     assert request.destination_iban == "DE89370400440532013000"
+    assert request.destination_email is None
     assert request.amount == Decimal("100.00")
+
+
+def test_transaction_create_request_accepts_email_destination() -> None:
+    """Verify that a transaction request accepts an email destination."""
+    request = TransactionCreateRequest(
+        destination_email="recipient@example.com",
+        amount=Decimal("100.00"),
+    )
+
+    assert request.destination_iban is None
+    assert request.destination_email == "recipient@example.com"
+    assert request.amount == Decimal("100.00")
+
+
+def test_transaction_create_request_normalizes_destination_email() -> None:
+    """Verify that destination email whitespace and casing are normalized."""
+    request = TransactionCreateRequest(
+        destination_email="  Recipient@Example.COM  ",
+        amount=Decimal("100.00"),
+    )
+
+    assert request.destination_email == "recipient@example.com"
+
+
+def test_transaction_create_request_rejects_missing_destination() -> None:
+    """Verify that a transaction request requires a destination."""
+    with pytest.raises(
+        ValidationError,
+        match="Exactly one of destination_iban or destination_email",
+    ):
+        TransactionCreateRequest(
+            amount=Decimal("100.00"),
+        )
+
+
+def test_transaction_create_request_rejects_multiple_destinations() -> None:
+    """Verify that a transaction request accepts exactly one destination."""
+    with pytest.raises(
+        ValidationError,
+        match="Exactly one of destination_iban or destination_email",
+    ):
+        TransactionCreateRequest(
+            destination_iban="DE89370400440532013000",
+            destination_email="recipient@example.com",
+            amount=Decimal("100.00"),
+        )
+
+
+def test_transaction_create_request_rejects_invalid_destination_email() -> None:
+    """Verify that an invalid destination email is rejected."""
+    with pytest.raises(ValidationError):
+        TransactionCreateRequest(
+            destination_email="not-an-email",
+            amount=Decimal("100.00"),
+        )
 
 
 def test_transaction_create_request_rejects_too_short_iban() -> None:
