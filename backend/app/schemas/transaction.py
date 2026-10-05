@@ -1,33 +1,68 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+
+
+class IbanBankIdentificationResponse(BaseModel):
+    """Represent bank information identified from an IBAN."""
+
+    bank_code: str
+    bank_name: str
+    bic: str
 
 
 class TransactionCreateRequest(BaseModel):
     """Represent a request to create a transaction."""
 
-    destination_iban: str = Field(min_length=15, max_length=34)
-    amount: Decimal = Field(gt=0, max_digits=19, decimal_places=4)
-    reference: str | None = Field(default=None, max_length=140)
+    destination_iban: str | None = Field(
+        default=None,
+        min_length=15,
+        max_length=34,
+    )
+    destination_email: EmailStr | None = Field(
+        default=None,
+        max_length=254,
+    )
+    amount: Decimal = Field(
+        gt=0,
+        max_digits=19,
+        decimal_places=4,
+    )
+    reference: str | None = Field(
+        default=None,
+        max_length=140,
+    )
+
+    @model_validator(mode="after")
+    def validate_destination(self) -> "TransactionCreateRequest":
+        """Require exactly one transaction destination."""
+        if (self.destination_iban is None) == (self.destination_email is None):
+            raise ValueError(
+                "Exactly one of destination_iban or destination_email "
+                "must be provided.",
+            )
+
+        return self
+
+    @field_validator("destination_email", mode="before")
+    @classmethod
+    def normalize_destination_email(cls, value: object) -> object:
+        """Normalize destination email addresses before validation."""
+        if isinstance(value, str):
+            return value.strip().lower()
+
+        return value
 
     @field_validator("reference", mode="before")
     @classmethod
     def normalize_reference(cls, value: object) -> object:
-        """Normalize an empty or whitespace-only reference to None."""
+        """Normalize optional transaction references."""
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None
 
         return value
-
-
-class IbanBankIdentificationResponse(BaseModel):
-    """Represent Idemerax bank information resolved from an IBAN."""
-
-    bank_code: str
-    bank_name: str
-    bic: str
 
 
 class TransactionResponse(BaseModel):

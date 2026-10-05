@@ -1,7 +1,10 @@
 from decimal import Decimal
 
 from app.application.accounts.ports import AccountRepositoryPort
-from app.application.transactions.ports import TransactionRepositoryPort
+from app.application.transactions.ports import (
+    TransactionRepositoryPort,
+    UserRepositoryPort,
+)
 from app.domain.account.iban import is_valid_iban
 from app.infrastructure.database.models.transaction import Transaction
 
@@ -17,14 +20,17 @@ class TransactionProcessing:
         self,
         account_repository: AccountRepositoryPort,
         transaction_repository: TransactionRepositoryPort,
+        user_repository: UserRepositoryPort,
     ) -> None:
         self.account_repository = account_repository
         self.transaction_repository = transaction_repository
+        self.user_repository = user_repository
 
     async def execute(
         self,
         user_id: int,
-        destination_iban: str,
+        destination_iban: str | None,
+        destination_email: str | None,
         amount: Decimal,
         reference: str | None = None,
     ) -> Transaction:
@@ -41,11 +47,9 @@ class TransactionProcessing:
                 "Transaction amount supports at most four decimal places.",
             )
 
-        normalized_destination_iban = "".join(destination_iban.split()).upper()
-
-        if not is_valid_iban(normalized_destination_iban):
+        if (destination_iban is None) == (destination_email is None):
             raise TransactionProcessingError(
-                "Invalid destination IBAN.",
+                "Exactly one destination must be provided.",
             )
 
         normalized_reference = reference.strip() if reference else None
@@ -65,9 +69,40 @@ class TransactionProcessing:
                 "Source financial account not found.",
             )
 
-        destination_account = await self.account_repository.get_by_iban(
-            iban=normalized_destination_iban,
-        )
+        if destination_iban is not None:
+            normalized_destination_iban = "".join(
+                destination_iban.split(),
+            ).upper()
+
+            if not is_valid_iban(normalized_destination_iban):
+                raise TransactionProcessingError(
+                    "Invalid destination IBAN.",
+                )
+
+            destination_account = await self.account_repository.get_by_iban(
+                iban=normalized_destination_iban,
+            )
+
+        else:
+            if destination_email is None:
+                raise TransactionProcessingError(
+                    "Exactly one destination must be provided.",
+                )
+
+            normalized_destination_email = destination_email.strip().lower()
+
+            destination_user = await self.user_repository.get_by_email(
+                normalized_destination_email,
+            )
+
+            if destination_user is None or not destination_user.is_active:
+                raise TransactionProcessingError(
+                    "Destination user not found.",
+                )
+
+            destination_account = await self.account_repository.get_by_user_id(
+                user_id=destination_user.id,
+            )
 
         if destination_account is None:
             raise TransactionProcessingError(

@@ -17,6 +17,7 @@ from app.infrastructure.repositories.financial_institution import (
     FinancialInstitutionRepository,
 )
 from app.infrastructure.repositories.transaction import TransactionRepository
+from app.infrastructure.repositories.user import UserRepository
 from app.schemas.transaction import (
     IbanBankIdentificationResponse,
     TransactionCreateRequest,
@@ -71,15 +72,19 @@ async def create_transaction(
     """Create a transaction for the authenticated user."""
     account_repository = AccountRepository(session)
     transaction_repository = TransactionRepository(session)
+    user_repository = UserRepository(session)
+
     transaction_processing = TransactionProcessing(
         account_repository=account_repository,
         transaction_repository=transaction_repository,
+        user_repository=user_repository,
     )
 
     try:
         transaction = await transaction_processing.execute(
             user_id=current_user.id,
             destination_iban=transaction_data.destination_iban,
+            destination_email=transaction_data.destination_email,
             amount=transaction_data.amount,
             reference=transaction_data.reference,
         )

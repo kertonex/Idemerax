@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.infrastructure.database.models.transaction import Transaction
+from app.infrastructure.database.models.user import User
 
 
 class TransactionRepositoryPort(Protocol):
@@ -17,4 +18,12 @@ class TransactionRepositoryPort(Protocol):
         reference: str | None = None,
     ) -> Transaction:
         """Create and return a transaction without committing."""
+        ...
+
+
+class UserRepositoryPort(Protocol):
+    """Define user data access required by transaction processing."""
+
+    async def get_by_email(self, email: str) -> User | None:
+        """Return a user by email address."""
         ...
