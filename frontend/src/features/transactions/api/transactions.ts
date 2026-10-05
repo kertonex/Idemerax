@@ -3,6 +3,7 @@ import { apiClient } from '../../../shared/api/client';
 export type TransactionCreateRequest = {
   destination_iban: string;
   amount: string;
+  reference?: string | null;
 };
 
 export type IbanBankDetails = {
@@ -17,6 +18,7 @@ export type Transaction = {
   source_account_id: number;
   destination_account_id: number;
   amount: string;
+  reference: string | null;
   transaction_type: string;
   status: string;
 };

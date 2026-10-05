@@ -92,6 +92,7 @@ function TransactionsPage() {
   async function handleTransaction(
     destinationIban: string,
     amount: string,
+    reference: string | null,
   ): Promise<void> {
     if (!accessToken) {
       setError('Not authenticated.');
@@ -106,6 +107,7 @@ function TransactionsPage() {
       const createdTransaction = await createTransaction(accessToken, {
         destination_iban: destinationIban,
         amount,
+        reference: reference?.trim() || null,
       });
 
       setTransaction(createdTransaction);
@@ -175,7 +177,6 @@ function TransactionsPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="m9 12 2 2 4-4"
                   strokeLinecap="round"
@@ -196,7 +197,6 @@ function TransactionsPage() {
             <div className="mt-6 space-y-4 border-t border-slate-800 pt-5">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-slate-500">Transaction type</span>
-
                 <span className="text-sm font-medium text-slate-200">
                   Transfer
                 </span>
@@ -204,7 +204,6 @@ function TransactionsPage() {
 
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-slate-500">Currency</span>
-
                 <span className="text-sm font-medium text-slate-200">EUR</span>
               </div>
             </div>
@@ -238,7 +237,6 @@ function TransactionsPage() {
                   <p className="text-sm font-medium uppercase tracking-[0.15em] text-emerald-400">
                     Transfer completed
                   </p>
-
                   <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
                     {formatAmount(transaction.amount)}
                   </p>
@@ -249,12 +247,22 @@ function TransactionsPage() {
                 </span>
               </div>
 
+              {transaction.reference && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                    Reference
+                  </p>
+                  <p className="mt-1 break-words text-sm text-slate-300">
+                    {transaction.reference}
+                  </p>
+                </div>
+              )}
+
               <div className="mt-5 grid gap-4 border-t border-emerald-500/10 pt-5 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
                     Transaction ID
                   </p>
-
                   <p className="mt-1 font-mono text-sm text-slate-300">
                     #{transaction.id}
                   </p>
@@ -264,7 +272,6 @@ function TransactionsPage() {
                   <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
                     Processed
                   </p>
-
                   <p className="mt-1 text-sm text-slate-300">
                     {formatCreatedAt(transaction.created_at)}
                   </p>
