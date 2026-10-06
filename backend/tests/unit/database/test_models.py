@@ -39,6 +39,15 @@ def test_database_models_define_expected_columns() -> None:
     assert isinstance(Card.__table__.c.status.type, String)
 
 
+def test_transaction_amount_has_expected_precision() -> None:
+    """Verify that transaction amounts use the defined monetary precision."""
+    amount_type = Transaction.__table__.c.amount.type
+
+    assert isinstance(amount_type, Numeric)
+    assert amount_type.precision == 19
+    assert amount_type.scale == 4
+
+
 def test_user_email_is_unique() -> None:
     """Verify that user email addresses are unique."""
     email_column = User.__table__.c.email
@@ -75,3 +84,59 @@ def test_account_user_id_is_indexed() -> None:
     user_id_column = Account.__table__.c.user_id
 
     assert user_id_column.index is True
+
+
+def test_transaction_source_account_id_has_foreign_key() -> None:
+    """Verify that transaction source_account_id references the accounts table."""
+    source_account_id_column = Transaction.__table__.c.source_account_id
+    foreign_keys = list(source_account_id_column.foreign_keys)
+
+    assert len(foreign_keys) == 1
+    assert foreign_keys[0].target_fullname == "accounts.id"
+
+
+def test_transaction_destination_account_id_has_foreign_key() -> None:
+    """Verify that transaction destination_account_id references the accounts table."""
+    destination_account_id_column = Transaction.__table__.c.destination_account_id
+    foreign_keys = list(destination_account_id_column.foreign_keys)
+
+    assert len(foreign_keys) == 1
+    assert foreign_keys[0].target_fullname == "accounts.id"
+
+
+def test_transaction_account_relationships_are_defined() -> None:
+    """Verify that the Transaction-Account ORM relationships are configured."""
+    source_relationship = Transaction.__mapper__.relationships["source_account"]
+    destination_relationship = Transaction.__mapper__.relationships[
+        "destination_account"
+    ]
+    account_source_relationship = Account.__mapper__.relationships[
+        "source_transactions"
+    ]
+    account_destination_relationship = Account.__mapper__.relationships[
+        "destination_transactions"
+    ]
+
+    assert isinstance(source_relationship, RelationshipProperty)
+    assert isinstance(destination_relationship, RelationshipProperty)
+    assert isinstance(account_source_relationship, RelationshipProperty)
+    assert isinstance(account_destination_relationship, RelationshipProperty)
+
+    assert source_relationship.mapper.class_ is Account
+    assert destination_relationship.mapper.class_ is Account
+    assert account_source_relationship.mapper.class_ is Transaction
+    assert account_destination_relationship.mapper.class_ is Transaction
+
+    assert source_relationship.back_populates == "source_transactions"
+    assert destination_relationship.back_populates == "destination_transactions"
+    assert account_source_relationship.back_populates == "source_account"
+    assert account_destination_relationship.back_populates == "destination_account"
+
+
+def test_transaction_account_ids_are_indexed() -> None:
+    """Verify that transaction account ID columns have database indexes."""
+    source_account_id_column = Transaction.__table__.c.source_account_id
+    destination_account_id_column = Transaction.__table__.c.destination_account_id
+
+    assert source_account_id_column.index is True
+    assert destination_account_id_column.index is True

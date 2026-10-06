@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -7,9 +8,14 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.account.iban import generate_account_number
 from app.infrastructure.database.models.account import Account
+from app.infrastructure.database.models.transaction import Transaction
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
 from app.infrastructure.repositories.account import AccountRepository
+from app.infrastructure.repositories.financial_institution import (
+    FinancialInstitutionRepository,
+)
+from app.infrastructure.repositories.transaction import TransactionRepository
 from app.infrastructure.repositories.user import UserRepository
 
 
@@ -22,6 +28,7 @@ async def test_get_user_by_email_returns_matching_user() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.commit()
 
@@ -80,6 +87,7 @@ async def test_get_user_by_email_is_case_sensitive() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.commit()
 
@@ -98,6 +106,7 @@ async def test_get_user_by_email_does_not_strip_whitespace() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.commit()
 
@@ -117,6 +126,7 @@ async def test_get_user_by_email_returns_inactive_user() -> None:
             password_hash="test-password-hash",
             is_active=False,
         )
+
         session.add(user)
         await session.commit()
 
@@ -138,6 +148,7 @@ async def test_create_account_persists_account_for_user() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.flush()
 
@@ -180,6 +191,7 @@ async def test_create_account_retries_after_account_number_collision() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.flush()
 
@@ -221,6 +233,7 @@ async def test_create_account_raises_after_ten_account_number_collisions() -> No
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.flush()
 
@@ -258,6 +271,7 @@ async def test_get_account_by_user_id_returns_matching_account() -> None:
             email=email,
             password_hash="test-password-hash",
         )
+
         session.add(user)
         await session.flush()
 
@@ -282,3 +296,125 @@ async def test_get_account_by_unknown_user_id_returns_none() -> None:
         result = await repository.get_by_user_id(user_id=999999999)
 
     assert result is None
+
+
+@pytest.mark.anyio
+async def test_get_financial_institution_by_bank_code_returns_match() -> None:
+    """Return the financial institution matching the given bank code."""
+    async with SessionFactory() as session:
+        repository = FinancialInstitutionRepository(session)
+
+        result = await repository.get_by_bank_code("12345678")
+
+    assert result is not None
+    assert result.name == "Idemerax"
+    assert result.bank_code == "12345678"
+    assert result.bic == "IDEMDEFFXXX"
+
+
+@pytest.mark.anyio
+async def test_get_financial_institution_by_unknown_bank_code_returns_none() -> None:
+    """Return None when no financial institution matches the bank code."""
+    async with SessionFactory() as session:
+        repository = FinancialInstitutionRepository(session)
+
+        result = await repository.get_by_bank_code("99999999")
+
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_create_transaction_persists_transaction() -> None:
+    """Create and persist a transaction between two accounts."""
+    source_email = f"transaction-source-{uuid4()}@example.com"
+    destination_email = f"transaction-destination-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        source_user = User(
+            email=source_email,
+            password_hash="test-password-hash",
+        )
+        destination_user = User(
+            email=destination_email,
+            password_hash="test-password-hash",
+        )
+
+        session.add_all([source_user, destination_user])
+        await session.flush()
+
+        account_repository = AccountRepository(session)
+        source_account = await account_repository.create(
+            user_id=source_user.id,
+        )
+        destination_account = await account_repository.create(
+            user_id=destination_user.id,
+        )
+
+        repository = TransactionRepository(session)
+        transaction = await repository.create(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=Decimal("100.00"),
+            transaction_type="TRANSFER",
+            status="COMPLETED",
+        )
+
+        assert transaction.id is not None
+        assert transaction.source_account_id == source_account.id
+        assert transaction.destination_account_id == destination_account.id
+        assert transaction.amount == Decimal("100.00")
+        assert transaction.transaction_type == "TRANSFER"
+        assert transaction.status == "COMPLETED"
+        assert transaction.created_at is not None
+        assert transaction.created_at.tzinfo is not None
+
+        await session.commit()
+
+
+@pytest.mark.anyio
+async def test_create_transaction_does_not_commit_transaction() -> None:
+    """Leave transaction commit control to the calling application layer."""
+    source_email = f"transaction-rollback-source-{uuid4()}@example.com"
+    destination_email = f"transaction-rollback-destination-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        source_user = User(
+            email=source_email,
+            password_hash="test-password-hash",
+        )
+        destination_user = User(
+            email=destination_email,
+            password_hash="test-password-hash",
+        )
+
+        session.add_all([source_user, destination_user])
+        await session.flush()
+
+        account_repository = AccountRepository(session)
+        source_account = await account_repository.create(
+            user_id=source_user.id,
+        )
+        destination_account = await account_repository.create(
+            user_id=destination_user.id,
+        )
+
+        repository = TransactionRepository(session)
+        transaction = await repository.create(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=Decimal("100.00"),
+            transaction_type="TRANSFER",
+            status="COMPLETED",
+        )
+
+        transaction_id = transaction.id
+
+        await session.rollback()
+
+    async with SessionFactory() as session:
+        result = await session.execute(
+            select(Transaction).where(Transaction.id == transaction_id)
+        )
+        persisted_transaction = result.scalar_one_or_none()
+
+    assert persisted_transaction is None
