@@ -1,16 +1,20 @@
 import { render, screen, waitFor } from '@testing-library/react';
+
 import userEvent from '@testing-library/user-event';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockGetMyAccount,
   mockCreateTransaction,
   mockGetIbanBankDetails,
+  mockGetCurrentUser,
   mockUseAuth,
 } = vi.hoisted(() => ({
   mockGetMyAccount: vi.fn(),
   mockCreateTransaction: vi.fn(),
   mockGetIbanBankDetails: vi.fn(),
+  mockGetCurrentUser: vi.fn(),
   mockUseAuth: vi.fn(),
 }));
 
@@ -21,6 +25,10 @@ vi.mock('../../src/features/accounts/api/accounts', () => ({
 vi.mock('../../src/features/transactions/api/transactions', () => ({
   createTransaction: mockCreateTransaction,
   getIbanBankDetails: mockGetIbanBankDetails,
+}));
+
+vi.mock('../../src/features/authentication/api/authentication', () => ({
+  getCurrentUser: mockGetCurrentUser,
 }));
 
 vi.mock('../../src/features/authentication/context/useAuth', () => ({
@@ -37,6 +45,13 @@ describe('TransactionsPage', () => {
 
     mockUseAuth.mockReturnValue({
       accessToken: 'test-access-token',
+    });
+
+    mockGetCurrentUser.mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
     });
 
     mockGetIbanBankDetails.mockResolvedValue({
@@ -391,5 +406,237 @@ describe('TransactionsPage', () => {
 
     expect(mockGetMyAccount).not.toHaveBeenCalled();
     expect(mockGetIbanBankDetails).not.toHaveBeenCalled();
+  });
+
+  it('creates a transaction with an email recipient', async () => {
+    const user = userEvent.setup();
+
+    mockGetMyAccount
+      .mockResolvedValueOnce({
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '1000.0000',
+      })
+      .mockResolvedValueOnce({
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '750.0000',
+      });
+
+    mockCreateTransaction.mockResolvedValueOnce({
+      id: 44,
+      created_at: '2026-10-06T10:00:00Z',
+      source_account_id: 1,
+      destination_account_id: 2,
+      amount: '250.0000',
+      transaction_type: 'TRANSFER',
+      status: 'COMPLETED',
+      reference: null,
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    await user.type(
+      screen.getByLabelText('Recipient email'),
+      'recipient@example.com',
+    );
+
+    await user.type(screen.getByLabelText('Amount'), '250');
+
+    await user.click(screen.getByRole('button', { name: 'Send money' }));
+
+    await waitFor(() => {
+      expect(mockCreateTransaction).toHaveBeenCalledWith('test-access-token', {
+        destination_email: 'recipient@example.com',
+        amount: '250',
+        reference: null,
+      });
+    });
+
+    expect(screen.getByText('Transfer completed')).toBeInTheDocument();
+  });
+
+  it('switches to receive money mode', async () => {
+    const user = userEvent.setup();
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Receive Money' }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        'Share one of the following details with someone who wants to send money to your Idemerax account.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('displays the account payment details in receive money mode', async () => {
+    const user = userEvent.setup();
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+
+    expect(screen.getByText('DE89 3704 0044 0532 0130 00')).toBeInTheDocument();
+
+    expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
+    expect(screen.getByText('user@example.com')).toBeInTheDocument();
+  });
+
+  it('copies the account IBAN in receive money mode', async () => {
+    const user = userEvent.setup();
+
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue(undefined);
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+
+    const copyButton = screen.getByRole('button', {
+      name: 'Copy IBAN',
+    });
+
+    await user.click(copyButton);
+
+    expect(writeText).toHaveBeenCalledWith(VALID_IBAN);
+    expect(copyButton).toHaveTextContent('Copied');
+
+    writeText.mockRestore();
+  });
+
+  it('copies the account BIC in receive money mode', async () => {
+    const user = userEvent.setup();
+
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue(undefined);
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+
+    const copyButton = screen.getByRole('button', {
+      name: 'Copy BIC',
+    });
+
+    await user.click(copyButton);
+
+    expect(writeText).toHaveBeenCalledWith('IDEMDEFFXXX');
+    expect(copyButton).toHaveTextContent('Copied');
+
+    writeText.mockRestore();
+  });
+
+  it('copies the account email in receive money mode', async () => {
+    const user = userEvent.setup();
+
+    const writeText = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue(undefined);
+
+    mockGetMyAccount.mockResolvedValueOnce({
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
+    });
+
+    render(<TransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+
+    const copyButton = screen.getByRole('button', {
+      name: 'Copy Email',
+    });
+
+    await user.click(copyButton);
+
+    expect(writeText).toHaveBeenCalledWith('user@example.com');
+    expect(copyButton).toHaveTextContent('Copied');
+
+    writeText.mockRestore();
   });
 });

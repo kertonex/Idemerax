@@ -112,4 +112,61 @@ describe('createTransaction', () => {
       }),
     );
   });
+
+  it('sends an authenticated transaction creation request with an email destination', async () => {
+    const transaction: Transaction = {
+      id: 2,
+      created_at: '2026-10-06T10:00:00Z',
+      source_account_id: 10,
+      destination_account_id: 20,
+      amount: '75.2500',
+      reference: 'Invoice payment',
+      transaction_type: 'TRANSFER',
+      status: 'COMPLETED',
+    };
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(transaction), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const result = await createTransaction('test-access-token', {
+      destination_email: 'recipient@example.com',
+      amount: '75.2500',
+      reference: 'Invoice payment',
+    });
+
+    expect(result).toEqual(transaction);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url, options] = fetchMock.mock.calls[0];
+
+    expect(url).toBe('http://localhost:8000/transactions');
+
+    expect(options).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    expect(new Headers(options?.headers).get('Authorization')).toBe(
+      'Bearer test-access-token',
+    );
+
+    expect(new Headers(options?.headers).get('Content-Type')).toBe(
+      'application/json',
+    );
+
+    expect(options?.body).toBe(
+      JSON.stringify({
+        destination_email: 'recipient@example.com',
+        amount: '75.2500',
+        reference: 'Invoice payment',
+      }),
+    );
+  });
 });

@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import userEvent from '@testing-library/user-event';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getIbanBankDetails } from '../../../src/features/transactions/api/transactions';
+
 import TransactionForm from '../../../src/features/transactions/components/TransactionForm';
 
 vi.mock('../../../src/features/transactions/api/transactions', () => ({
@@ -176,6 +179,128 @@ describe('TransactionForm', () => {
     expect(getIbanBankDetails).not.toHaveBeenCalled();
   });
 
+  it('renders the recipient method options', () => {
+    renderTransactionForm();
+
+    expect(
+      screen.getByRole('group', { name: 'Recipient method' }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'IBAN' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Email' })).toBeInTheDocument();
+  });
+
+  it('switches to email recipient method', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm();
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    expect(screen.getByLabelText('Recipient email')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Recipient IBAN')).not.toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'Email' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('accepts a valid recipient email', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm();
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    await user.type(
+      screen.getByLabelText('Recipient email'),
+      'recipient@example.com',
+    );
+
+    expect(
+      screen.getByText(
+        'Enter the email address associated with the recipient account.',
+      ),
+    ).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Amount'), '250');
+
+    expect(screen.getByRole('button', { name: 'Send money' })).toBeEnabled();
+  });
+
+  it('rejects an invalid recipient email', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm();
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    await user.type(screen.getByLabelText('Recipient email'), 'invalid-email');
+
+    expect(
+      screen.getByText('Enter a valid recipient email address.'),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Amount'), '250');
+
+    expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
+  });
+
+  it('keeps the submit button disabled until the email recipient and amount are valid', async () => {
+    const user = userEvent.setup();
+
+    renderTransactionForm();
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    const emailInput = screen.getByLabelText('Recipient email');
+    const amountInput = screen.getByLabelText('Amount');
+    const submitButton = screen.getByRole('button', {
+      name: 'Send money',
+    });
+
+    expect(submitButton).toBeDisabled();
+
+    await user.type(emailInput, 'invalid-email');
+    await user.type(amountInput, '250');
+
+    expect(submitButton).toBeDisabled();
+
+    await user.clear(emailInput);
+    await user.type(emailInput, 'recipient@example.com');
+
+    expect(submitButton).toBeEnabled();
+  });
+
+  it('submits a normalized email recipient', async () => {
+    const user = userEvent.setup();
+
+    const { onSubmit } = renderTransactionForm();
+
+    await user.click(screen.getByRole('button', { name: 'Email' }));
+
+    await user.type(
+      screen.getByLabelText('Recipient email'),
+      '  Recipient@Example.COM  ',
+    );
+
+    await user.type(screen.getByLabelText('Amount'), '250');
+
+    await user.click(screen.getByRole('button', { name: 'Send money' }));
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      'email',
+      'recipient@example.com',
+      '250',
+      null,
+    );
+  });
+
   it('accepts a valid German IBAN', async () => {
     const user = userEvent.setup();
 
@@ -295,7 +420,8 @@ describe('TransactionForm', () => {
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
     expect(onSubmit).toHaveBeenCalledOnce();
-    expect(onSubmit).toHaveBeenCalledWith(VALID_IBAN, '250.50', null);
+
+    expect(onSubmit).toHaveBeenCalledWith('iban', VALID_IBAN, '250.50', null);
   });
 
   it('trims the transaction reference before submitting', async () => {
@@ -309,7 +435,7 @@ describe('TransactionForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(VALID_IBAN, '250', 'Rent');
+    expect(onSubmit).toHaveBeenCalledWith('iban', VALID_IBAN, '250', 'Rent');
   });
 
   it('sanitizes unsupported characters from the amount input', async () => {
@@ -352,6 +478,7 @@ describe('TransactionForm', () => {
     const { onSubmit } = renderTransactionForm();
 
     await user.type(screen.getByLabelText('Recipient IBAN'), 'DE893704004405');
+
     await user.type(screen.getByLabelText('Amount'), '250');
 
     expect(screen.getByRole('button', { name: 'Send money' })).toBeDisabled();
