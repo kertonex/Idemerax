@@ -246,6 +246,11 @@ function TransactionForm({
 
   function handleIbanChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const formattedIban = formatIbanInput(event.target.value);
+
+    if (formattedIban === destinationIban) {
+      return;
+    }
+
     const formattedIbanIsGerman = isGermanIban(formattedIban);
     const formattedIbanIsValid =
       formattedIbanIsGerman && isValidIbanLength(formattedIban);
