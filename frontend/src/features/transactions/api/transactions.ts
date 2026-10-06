@@ -1,7 +1,8 @@
 import { apiClient } from '../../../shared/api/client';
 
 export type TransactionCreateRequest = {
-  destination_iban: string;
+  destination_iban?: string;
+  destination_email?: string;
   amount: string;
   reference?: string | null;
 };
