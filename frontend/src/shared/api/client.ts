@@ -10,12 +10,6 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
 };
 
-/**
- * Extract a user-readable message from an API error response.
- *
- * @param errorData - The parsed API error response.
- * @returns A user-readable error message, or undefined if none is available.
- */
 function getApiErrorMessage(
   errorData: ApiErrorResponse | undefined,
 ): string | undefined {
@@ -91,6 +85,10 @@ export async function apiClient<T>(
       getApiErrorMessage(errorData) ??
         `API request failed with status ${response.status}`,
     );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;

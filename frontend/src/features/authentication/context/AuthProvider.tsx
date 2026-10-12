@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getCurrentUser, refreshAccessToken } from '../api/authentication';
+import {
+  getCurrentUser,
+  refreshAccessToken,
+  type AuthenticatedUser,
+} from '../api/authentication';
 import { AuthContext } from './AuthContext';
 
 interface AuthProviderProps {
@@ -14,8 +18,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [accessToken, setAccessTokenState] = useState<string | null>(() =>
     sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY),
   );
+
+  const [currentUser, setCurrentUserState] = useState<AuthenticatedUser | null>(
+    null,
+  );
+
   const [isLoading, setIsLoading] = useState(true);
+
   const authOperationRef = useRef(0);
+
+  const loadUser = useCallback(
+    async (token: string, operation: number): Promise<boolean> => {
+      try {
+        const user = await getCurrentUser(token);
+
+        if (operation !== authOperationRef.current) {
+          return false;
+        }
+
+        setCurrentUserState(user);
+
+        return true;
+      } catch {
+        if (operation === authOperationRef.current) {
+          setCurrentUserState(null);
+        }
+
+        return false;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     async function restoreAuthentication() {
@@ -26,18 +59,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       );
 
       if (storedAccessToken) {
-        try {
-          await getCurrentUser(storedAccessToken);
+        const restored = await loadUser(storedAccessToken, operation);
 
-          if (operation !== authOperationRef.current) {
-            return;
+        if (restored) {
+          if (operation === authOperationRef.current) {
+            setAccessTokenState(storedAccessToken);
+            setIsLoading(false);
           }
 
-          setAccessTokenState(storedAccessToken);
-          setIsLoading(false);
           return;
-        } catch {
-          // Try to restore authentication through the refresh session.
         }
       }
 
@@ -49,7 +79,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, response.access_token);
-        setAccessTokenState(response.access_token);
+
+        const restored = await loadUser(response.access_token, operation);
+
+        if (operation !== authOperationRef.current) {
+          return;
+        }
+
+        if (restored) {
+          setAccessTokenState(response.access_token);
+        } else {
+          sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+          setAccessTokenState(null);
+          setCurrentUserState(null);
+        }
       } catch {
         if (operation !== authOperationRef.current) {
           return;
@@ -57,6 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
         setAccessTokenState(null);
+        setCurrentUserState(null);
       } finally {
         if (operation === authOperationRef.current) {
           setIsLoading(false);
@@ -65,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     void restoreAuthentication();
-  }, []);
+  }, [loadUser]);
 
   useEffect(() => {
     async function handleStorage(event: StorageEvent) {
@@ -75,9 +119,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (event.newValue === 'logout') {
         authOperationRef.current += 1;
+
         sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
         setAccessTokenState(null);
+        setCurrentUserState(null);
         setIsLoading(false);
+
         return;
       }
 
@@ -97,7 +144,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
             ACCESS_TOKEN_STORAGE_KEY,
             response.access_token,
           );
-          setAccessTokenState(response.access_token);
+
+          const restored = await loadUser(response.access_token, operation);
+
+          if (operation !== authOperationRef.current) {
+            return;
+          }
+
+          if (restored) {
+            setAccessTokenState(response.access_token);
+          } else {
+            sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+            setAccessTokenState(null);
+            setCurrentUserState(null);
+          }
         } catch {
           if (operation !== authOperationRef.current) {
             return;
@@ -105,6 +165,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
           setAccessTokenState(null);
+          setCurrentUserState(null);
         } finally {
           if (operation === authOperationRef.current) {
             setIsLoading(false);
@@ -118,31 +179,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       window.removeEventListener('storage', handleStorage);
     };
+  }, [loadUser]);
+
+  const setAccessToken = useCallback(
+    (token: string) => {
+      const operation = ++authOperationRef.current;
+
+      sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+      setAccessTokenState(token);
+      setCurrentUserState(null);
+      setIsLoading(true);
+
+      void loadUser(token, operation).finally(() => {
+        if (operation === authOperationRef.current) {
+          setIsLoading(false);
+        }
+      });
+    },
+    [loadUser],
+  );
+
+  const setCurrentUser = useCallback((user: AuthenticatedUser) => {
+    setCurrentUserState(user);
   }, []);
 
-  function setAccessToken(accessToken: string) {
+  const clearAccessToken = useCallback(() => {
     authOperationRef.current += 1;
-    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
-    setAccessTokenState(accessToken);
-    setIsLoading(false);
-  }
 
-  function clearAccessToken() {
-    authOperationRef.current += 1;
     sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     setAccessTokenState(null);
+    setCurrentUserState(null);
     setIsLoading(false);
-  }
+  }, []);
 
   const value = useMemo(
     () => ({
       accessToken,
+      currentUser,
       isAuthenticated: accessToken !== null,
       isLoading,
       setAccessToken,
+      setCurrentUser,
       clearAccessToken,
     }),
-    [accessToken, isLoading],
+    [
+      accessToken,
+      currentUser,
+      isLoading,
+      setAccessToken,
+      setCurrentUser,
+      clearAccessToken,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

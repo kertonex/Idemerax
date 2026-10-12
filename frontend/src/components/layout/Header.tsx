@@ -4,7 +4,7 @@ import { useAuth } from '../../features/authentication/context/useAuth';
 const AUTH_STORAGE_KEY = 'idemerax_auth';
 
 function Header() {
-  const { clearAccessToken } = useAuth();
+  const { currentUser, clearAccessToken } = useAuth();
 
   async function handleLogout() {
     try {
@@ -15,17 +15,28 @@ function Header() {
     }
   }
 
+  const fullName =
+    `${currentUser?.first_name ?? ''} ${currentUser?.last_name ?? ''}`.trim();
+
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950 px-6">
-      <div>
-        <p className="text-sm text-slate-400">Welcome back</p>
-        <h1 className="text-lg font-semibold text-white">Idemerax</h1>
+    <header className="flex min-h-16 items-center justify-between gap-4 border-b border-slate-800 bg-slate-950 px-4 py-2.5 sm:px-6">
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 sm:text-xs">
+          Welcome back
+        </p>
+
+        <p
+          className="mt-0.5 truncate text-base font-semibold leading-tight tracking-tight text-white sm:text-lg"
+          title={fullName}
+        >
+          {fullName}
+        </p>
       </div>
 
       <button
         type="button"
         onClick={() => void handleLogout()}
-        className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+        className="min-h-10 shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 sm:px-4"
       >
         Sign out
       </button>

@@ -140,7 +140,9 @@ function RegisterForm() {
       : passwordStrength;
 
   /** Handle registration form submission. */
-  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.SubmitEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
 
     setError(null);
@@ -157,9 +159,15 @@ function RegisterForm() {
         password,
       });
 
+      /*
+       * setAccessToken() also loads /auth/me, which gives the auth
+       * provider the authoritative profile_complete value.
+       *
+       * New registrations are intentionally sent to Settings first.
+       */
       setAccessToken(response.access_token);
       localStorage.setItem('idemerax_auth', 'login');
-      navigate('/dashboard');
+      navigate('/settings');
     } catch (error) {
       setError(
         error instanceof Error
@@ -403,9 +411,11 @@ function RegisterForm() {
 
       <div className="my-7 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-800" />
+
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
           or
         </span>
+
         <div className="h-px flex-1 bg-slate-800" />
       </div>
 

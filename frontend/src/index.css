@@ -1,1 +1,133 @@
 @import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+  background: #020617;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #020617;
+  color: #ffffff;
+}
+
+/* System: the original Idemerax appearance and default theme. */
+.theme-system {
+  color-scheme: dark;
+}
+
+.theme-system body {
+  background: #020617;
+  color: #ffffff;
+}
+
+/* Dark: deeper and more neutral than the original System theme. */
+.theme-dark {
+  color-scheme: dark;
+}
+
+.theme-dark body {
+  background: #01040a;
+  color: #ffffff;
+}
+
+.theme-dark [class~='bg-slate-950'] {
+  background-color: #01040a !important;
+}
+
+.theme-dark [class~='bg-slate-900'] {
+  background-color: #08111f !important;
+}
+
+.theme-dark [class~='bg-slate-800'] {
+  background-color: #0d1828 !important;
+}
+
+.theme-dark [class~='bg-slate-700'] {
+  background-color: #152235 !important;
+}
+
+.theme-dark [class~='bg-[#020617]'] {
+  background-color: #01040a !important;
+}
+
+.theme-dark [class~='bg-[#071522]'] {
+  background-color: #08111f !important;
+}
+
+.theme-dark [class~='border-slate-800'] {
+  border-color: #1a2738 !important;
+}
+
+.theme-dark [class~='border-slate-700'] {
+  border-color: #26364a !important;
+}
+
+.theme-dark [class~='hover:bg-slate-900']:hover {
+  background-color: #0d1828 !important;
+}
+
+.theme-dark [class~='hover:bg-slate-800']:hover {
+  background-color: #152235 !important;
+}
+
+/* Midnight: very dark with a deliberate cool-blue/navy identity. */
+.theme-midnight {
+  color-scheme: dark;
+}
+
+.theme-midnight body {
+  background: #020817;
+  color: #ffffff;
+}
+
+.theme-midnight [class~='bg-slate-950'] {
+  background-color: #020817 !important;
+}
+
+.theme-midnight [class~='bg-slate-900'] {
+  background-color: #071522 !important;
+}
+
+.theme-midnight [class~='bg-slate-800'] {
+  background-color: #0b1c2d !important;
+}
+
+.theme-midnight [class~='bg-slate-700'] {
+  background-color: #12304a !important;
+}
+
+.theme-midnight [class~='bg-[#020617]'] {
+  background-color: #020817 !important;
+}
+
+.theme-midnight [class~='bg-[#071522]'] {
+  background-color: #0b1c2d !important;
+}
+
+.theme-midnight [class~='border-slate-800'] {
+  border-color: #163047 !important;
+}
+
+.theme-midnight [class~='border-slate-700'] {
+  border-color: #214661 !important;
+}
+
+.theme-midnight [class~='hover:bg-slate-900']:hover {
+  background-color: #0b1c2d !important;
+}
+
+.theme-midnight [class~='hover:bg-slate-800']:hover {
+  background-color: #12304a !important;
+}
+
+.theme-midnight [class~='hover:border-slate-700']:hover {
+  border-color: #2a5773 !important;
+}

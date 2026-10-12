@@ -1,19 +1,14 @@
 import { createContext } from 'react';
 
+import type { AuthenticatedUser } from '../api/authentication';
+
 export interface AuthContextValue {
-  /** Current access token, or null when unauthenticated. */
   accessToken: string | null;
-
-  /** Whether the user is currently authenticated. */
+  currentUser: AuthenticatedUser | null;
   isAuthenticated: boolean;
-
-  /** Whether authentication state is being restored. */
   isLoading: boolean;
-
-  /** Set the current access token after successful authentication. */
   setAccessToken: (accessToken: string) => void;
-
-  /** Clear the current access token and authentication state. */
+  setCurrentUser: (user: AuthenticatedUser) => void;
   clearAccessToken: () => void;
 }
 
