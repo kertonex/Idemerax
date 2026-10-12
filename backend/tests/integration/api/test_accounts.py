@@ -33,6 +33,8 @@ async def test_create_account_creates_financial_account_for_authenticated_user()
         user = User(
             email=email,
             password_hash=hash_password("test-password"),
+            first_name="Test",
+            last_name="User",
         )
         session.add(user)
         await session.commit()
@@ -78,10 +80,14 @@ async def test_create_account_ignores_client_provided_user_id() -> None:
         first_user = User(
             email=first_email,
             password_hash=hash_password("test-password"),
+            first_name="Test",
+            last_name="User",
         )
         second_user = User(
             email=second_email,
             password_hash=hash_password("test-password"),
+            first_name="Other",
+            last_name="User",
         )
         session.add_all([first_user, second_user])
         await session.commit()
@@ -123,10 +129,14 @@ async def test_get_my_account_returns_authenticated_users_account() -> None:
         first_user = User(
             email=first_email,
             password_hash=hash_password("test-password"),
+            first_name="Test",
+            last_name="User",
         )
         second_user = User(
             email=second_email,
             password_hash=hash_password("test-password"),
+            first_name="Other",
+            last_name="User",
         )
         session.add_all([first_user, second_user])
         await session.flush()
@@ -159,3 +169,31 @@ async def test_get_my_account_returns_authenticated_users_account() -> None:
     created_at = datetime.fromisoformat(data["created_at"])
 
     assert created_at.tzinfo is not None
+
+
+@pytest.mark.anyio
+async def test_create_account_rejects_incomplete_profile() -> None:
+    """Reject account access until required profile information is completed."""
+    email = f"account-incomplete-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("test-password"),
+        )
+        session.add(user)
+        await session.commit()
+
+        user_id = user.id
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.post(
+        "/accounts",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Profile completion is required.",
+    }

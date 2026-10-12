@@ -170,6 +170,8 @@ async def test_get_current_user_returns_authenticated_user() -> None:
         user = User(
             email=email,
             password_hash=hash_password("correct-password"),
+            first_name="Test",
+            last_name="User",
         )
         session.add(user)
         await session.commit()
@@ -191,6 +193,9 @@ async def test_get_current_user_returns_authenticated_user() -> None:
         "email": email,
         "role": "USER",
         "is_active": True,
+        "first_name": "Test",
+        "last_name": "User",
+        "profile_complete": True,
     }
     assert "password_hash" not in data
 
@@ -516,6 +521,7 @@ async def test_logout_invalidates_refresh_token() -> None:
             "__Host-refresh_token",
             refresh_token,
         )
+
         refresh_response = test_client.post("/auth/refresh")
 
     assert logout_response.status_code == 204

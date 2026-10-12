@@ -29,6 +29,8 @@ async def create_user_with_account(
         user = User(
             email=email,
             password_hash=hash_password("test-password"),
+            first_name="Test",
+            last_name="User",
         )
         session.add(user)
         await session.flush()
@@ -88,7 +90,9 @@ async def test_identify_iban_bank_rejects_unknown_bank() -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "The provided IBAN does not belong to Idemerax."
+    assert response.json()["detail"] == (
+        "The provided IBAN does not belong to Idemerax."
+    )
 
 
 @pytest.mark.anyio
@@ -281,7 +285,7 @@ async def test_create_transaction_rejects_same_source_and_destination() -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Source and destination accounts must differ."
+    assert response.json()["detail"] == ("Source and destination accounts must differ.")
 
     async with SessionFactory() as session:
         persisted_source = await session.get(Account, source_account.id)
@@ -369,3 +373,35 @@ async def test_create_transaction_rejects_excessive_precision() -> None:
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_create_transaction_rejects_incomplete_profile() -> None:
+    """Reject transaction access until required profile information is completed."""
+    email = f"transaction-incomplete-{uuid4()}@example.com"
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("test-password"),
+        )
+        session.add(user)
+        await session.commit()
+
+        user_id = user.id
+
+    access_token = create_access_token(str(user_id))
+
+    response = client.post(
+        "/transactions",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={
+            "destination_iban": VALID_IBAN,
+            "amount": "100.00",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Profile completion is required.",
+    }
