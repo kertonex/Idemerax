@@ -16,9 +16,11 @@ describe('Header', () => {
   it('renders the sign out button', () => {
     const authState: AuthContextValue = {
       accessToken: 'test-token',
+      currentUser: null,
       isLoading: false,
       isAuthenticated: true,
       setAccessToken: vi.fn(),
+      setCurrentUser: vi.fn(),
       clearAccessToken: vi.fn(),
     };
 
@@ -40,9 +42,11 @@ describe('Header', () => {
 
     const authState: AuthContextValue = {
       accessToken: 'test-access-token',
+      currentUser: null,
       isAuthenticated: true,
       isLoading: false,
       setAccessToken: vi.fn(),
+      setCurrentUser: vi.fn(),
       clearAccessToken,
     };
 

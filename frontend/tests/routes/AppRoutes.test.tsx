@@ -25,17 +25,29 @@ function renderRoutes(initialPath: string, authState: AuthContextValue) {
 
 const unauthenticatedState: AuthContextValue = {
   accessToken: null,
+  currentUser: null,
   isAuthenticated: false,
   isLoading: false,
   setAccessToken: vi.fn(),
+  setCurrentUser: vi.fn(),
   clearAccessToken: vi.fn(),
 };
 
 const authenticatedState: AuthContextValue = {
   accessToken: 'test-token',
+  currentUser: {
+    id: 1,
+    email: 'user@example.com',
+    role: 'USER',
+    is_active: true,
+    first_name: 'Test',
+    last_name: 'User',
+    profile_complete: true,
+  },
   isAuthenticated: true,
   isLoading: false,
   setAccessToken: vi.fn(),
+  setCurrentUser: vi.fn(),
   clearAccessToken: vi.fn(),
 };
 

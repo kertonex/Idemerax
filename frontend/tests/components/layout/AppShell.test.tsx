@@ -16,7 +16,7 @@ describe('AppShell', () => {
       </AuthProvider>,
     );
 
-    expect(screen.getAllByText('Idemerax')).toHaveLength(2);
+    expect(screen.getAllByText('Idemerax')).toHaveLength(1);
     expect(screen.getByText('Welcome back')).toBeInTheDocument();
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
