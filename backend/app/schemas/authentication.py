@@ -22,3 +22,6 @@ class AuthenticatedUserResponse(BaseModel):
     email: EmailStr
     role: str
     is_active: bool
+    first_name: str | None
+    last_name: str | None
+    profile_complete: bool

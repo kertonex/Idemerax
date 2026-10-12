@@ -41,6 +41,46 @@ class User(Base):
         default=True,
     )
 
+    first_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    last_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    language: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="en",
+    )
+
+    theme: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="system",
+    )
+
+    notify_transaction_completed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    notify_money_received: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    notify_transaction_failed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -62,3 +102,13 @@ class User(Base):
         cascade="all, delete-orphan",
         back_populates="user",
     )
+
+    @property
+    def profile_complete(self) -> bool:
+        """Return whether the required profile information is complete."""
+        return bool(
+            self.first_name
+            and self.first_name.strip()
+            and self.last_name
+            and self.last_name.strip()
+        )
