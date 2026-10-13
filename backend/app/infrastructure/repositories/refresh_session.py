@@ -36,8 +36,10 @@ class RefreshSessionRepository:
             token_hash=token_hash,
             expires_at=expires_at,
         )
+
         self.session.add(refresh_session)
         await self.session.flush()
+
         return refresh_session
 
     async def delete(self, refresh_session_id: int) -> None:
@@ -45,5 +47,13 @@ class RefreshSessionRepository:
         await self.session.execute(
             delete(RefreshSession).where(
                 RefreshSession.id == refresh_session_id,
+            ),
+        )
+
+    async def delete_all_by_user_id(self, user_id: int) -> None:
+        """Delete all refresh sessions belonging to a user."""
+        await self.session.execute(
+            delete(RefreshSession).where(
+                RefreshSession.user_id == user_id,
             ),
         )

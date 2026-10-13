@@ -264,7 +264,7 @@ describe('RegisterForm', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
     expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/dashboard',
+      '/settings',
     );
   });
 

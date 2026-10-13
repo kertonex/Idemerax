@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_completed_current_user
 from app.application.accounts.create_account import CreateAccount
 from app.application.accounts.get_my_account import GetMyAccount
 from app.infrastructure.database.models.user import User
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
     status_code=status.HTTP_201_CREATED,
 )
 async def create_account(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_completed_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
     """Create a financial account for the authenticated user."""
@@ -45,7 +45,7 @@ async def create_account(
     response_model=AccountResponse,
 )
 async def get_my_account(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_completed_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
     """Return the financial account belonging to the authenticated user."""

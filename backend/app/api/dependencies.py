@@ -41,3 +41,16 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_completed_current_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the authenticated user after required profile completion."""
+    if not current_user.profile_complete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Profile completion is required.",
+        )
+
+    return current_user

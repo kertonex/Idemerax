@@ -50,6 +50,9 @@ describe('AccountsPage', () => {
       email: 'user@example.com',
       role: 'USER',
       is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
     });
 
     mockGetMyAccount.mockResolvedValue(account);

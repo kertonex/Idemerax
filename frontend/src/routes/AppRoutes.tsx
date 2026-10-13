@@ -5,6 +5,7 @@ import { useAuth } from '../features/authentication/context/useAuth';
 import AccountsPage from '../pages/AccountsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import SettingsPage from '../pages/SettingsPage';
 import TransactionsPage from '../pages/TransactionsPage';
 import { getHealth } from '../shared/api/health';
 
@@ -24,12 +25,14 @@ function ReliabilityPage() {
   return <h1 className="text-2xl font-semibold">Reliability</h1>;
 }
 
-function SettingsPage() {
-  return <h1 className="text-2xl font-semibold">Settings</h1>;
-}
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+function ProtectedRoute({
+  children,
+  allowIncompleteProfile = false,
+}: {
+  children: React.ReactNode;
+  allowIncompleteProfile?: boolean;
+}) {
+  const { isAuthenticated, currentUser, isLoading } = useAuth();
 
   if (isLoading) {
     return null;
@@ -39,18 +42,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (!allowIncompleteProfile && !currentUser?.profile_complete) {
+    return <Navigate to="/settings" replace />;
+  }
+
   return children;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, currentUser, isLoading } = useAuth();
 
   if (isLoading) {
     return null;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate
+        to={currentUser?.profile_complete ? '/dashboard' : '/settings'}
+        replace
+      />
+    );
   }
 
   return children;
@@ -88,7 +100,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Account overview is available only to authenticated users. */}
       <Route
         path="/accounts"
         element={
@@ -128,7 +139,7 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowIncompleteProfile>
             <SettingsPage />
           </ProtectedRoute>
         }

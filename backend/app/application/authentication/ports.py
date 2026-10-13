@@ -7,7 +7,7 @@ from app.infrastructure.database.models.user import User
 
 
 class UserRepositoryPort(Protocol):
-    """Define user data access required by authentication."""
+    """Define user data access operations."""
 
     async def get_by_email(self, email: str) -> User | None:
         """Return a user by email address."""
@@ -18,20 +18,20 @@ class UserRepositoryPort(Protocol):
         ...
 
     async def create(self, email: str, password_hash: str) -> User:
-        """Create and return a new user."""
+        """Create a new user."""
         ...
 
 
 class AccountRepositoryPort(Protocol):
-    """Define account data access required by account management."""
+    """Define account data access operations."""
 
     async def create(self, user_id: int) -> Account:
-        """Create and return a new account."""
+        """Create a financial account for a user."""
         ...
 
 
 class RefreshSessionRepositoryPort(Protocol):
-    """Define refresh session data access required by authentication."""
+    """Define refresh-session data access operations."""
 
     async def get_by_token_hash(
         self,
@@ -46,9 +46,13 @@ class RefreshSessionRepositoryPort(Protocol):
         token_hash: str,
         expires_at: datetime,
     ) -> RefreshSession:
-        """Create and return a new refresh session."""
+        """Create a refresh session."""
         ...
 
     async def delete(self, refresh_session_id: int) -> None:
         """Delete a refresh session."""
+        ...
+
+    async def delete_all_by_user_id(self, user_id: int) -> None:
+        """Delete all refresh sessions belonging to a user."""
         ...

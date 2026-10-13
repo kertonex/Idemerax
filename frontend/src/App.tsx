@@ -2,14 +2,24 @@ import { useLocation } from 'react-router';
 
 import AppShell from './components/layout/AppShell';
 import { AuthProvider } from './features/authentication/context/AuthProvider';
+import { useAuth } from './features/authentication/context/useAuth';
+import { ThemeProvider } from './features/settings/context/ThemeProvider';
 import AppRoutes from './routes/AppRoutes';
 
 function App() {
   const location = useLocation();
+  const { currentUser, isAuthenticated, isLoading } = useAuth();
+
   const isAuthenticationPage =
     location.pathname === '/login' || location.pathname === '/register';
 
-  if (isAuthenticationPage) {
+  const shouldRenderAppShell =
+    !isAuthenticationPage &&
+    !isLoading &&
+    isAuthenticated &&
+    currentUser?.profile_complete === true;
+
+  if (!shouldRenderAppShell) {
     return <AppRoutes />;
   }
 
@@ -23,7 +33,9 @@ function App() {
 export default function AppWithAuth() {
   return (
     <AuthProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

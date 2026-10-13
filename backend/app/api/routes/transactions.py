@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_completed_current_user
 from app.application.accounts.identify_iban_bank import (
     IbanBankIdentificationError,
     identify_iban_bank,
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 )
 async def identify_iban_bank_details(
     iban: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_completed_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> IbanBankIdentificationResponse:
     """Return Idemerax bank information for a valid IBAN."""
@@ -66,7 +66,7 @@ async def identify_iban_bank_details(
 )
 async def create_transaction(
     transaction_data: TransactionCreateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_completed_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> TransactionResponse:
     """Create a transaction for the authenticated user."""

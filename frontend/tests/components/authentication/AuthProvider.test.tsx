@@ -92,6 +92,9 @@ describe('AuthProvider', () => {
       email: 'user@example.com',
       role: 'USER',
       is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: false,
     });
 
     render(
@@ -120,7 +123,17 @@ describe('AuthProvider', () => {
 
     sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, expiredAccessToken);
 
-    vi.mocked(getCurrentUser).mockRejectedValue(new Error('Unauthorized'));
+    vi.mocked(getCurrentUser)
+      .mockRejectedValueOnce(new Error('Unauthorized'))
+      .mockResolvedValueOnce({
+        id: 1,
+        email: 'user@example.com',
+        role: 'USER',
+        is_active: true,
+        first_name: 'Test',
+        last_name: 'User',
+        profile_complete: false,
+      });
 
     vi.mocked(refreshAccessToken).mockResolvedValue({
       access_token: refreshedAccessToken,
@@ -144,8 +157,9 @@ describe('AuthProvider', () => {
     );
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
 
-    expect(getCurrentUser).toHaveBeenCalledOnce();
-    expect(getCurrentUser).toHaveBeenCalledWith(expiredAccessToken);
+    expect(getCurrentUser).toHaveBeenCalledTimes(2);
+    expect(getCurrentUser).toHaveBeenNthCalledWith(1, expiredAccessToken);
+    expect(getCurrentUser).toHaveBeenNthCalledWith(2, refreshedAccessToken);
     expect(refreshAccessToken).toHaveBeenCalledOnce();
     expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBe(
       refreshedAccessToken,
@@ -207,6 +221,16 @@ describe('AuthProvider', () => {
       new Error('No refresh session'),
     );
 
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: false,
+    });
+
     const user = userEvent.setup();
 
     render(
@@ -225,7 +249,11 @@ describe('AuthProvider', () => {
       'new-access-token',
     );
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
-    expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+
     expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBe(
       'new-access-token',
     );
@@ -239,6 +267,9 @@ describe('AuthProvider', () => {
       email: 'user@example.com',
       role: 'USER',
       is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: false,
     });
 
     const user = userEvent.setup();
@@ -269,6 +300,9 @@ describe('AuthProvider', () => {
       email: 'user@example.com',
       role: 'USER',
       is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: false,
     });
 
     render(
@@ -319,6 +353,16 @@ describe('AuthProvider', () => {
     vi.mocked(refreshAccessToken).mockResolvedValue({
       access_token: 'refreshed-access-token',
       token_type: 'bearer',
+    });
+
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: false,
     });
 
     await act(async () => {

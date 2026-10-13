@@ -87,12 +87,16 @@ async def login(
         samesite="lax",
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+    return {
+        "access_token": access_token,
+        "token_type": "bearer", # nosec B105
+    }
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     credentials: RegisterRequest,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Register a new user and return an access token."""
@@ -116,16 +120,39 @@ async def register(
         ) from exc
     except IntegrityError as exc:
         await session.rollback()
+
         if isinstance(exc.orig, UniqueViolation):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email address is already registered.",
             ) from exc
+
         raise
 
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token()
 
-    return {"access_token": access_token, "token_type": "bearer"}  # nosec B105
+    refresh_session_repository = RefreshSessionRepository(session)
+
+    await refresh_session_repository.create(
+        user_id=user.id,
+        token_hash=hash_refresh_token(refresh_token),
+        expires_at=datetime.now(UTC)
+        + timedelta(days=settings.refresh_session_expire_days),
+    )
+
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE,
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer", # nosec B105
+    }
 
 
 @router.post("/refresh")
@@ -172,8 +199,8 @@ async def refresh_access_token(
 
     return {
         "access_token": access_token,
-        "token_type": "bearer",
-    }  # nosec B105
+        "token_type": "bearer", # nosec B105
+    }
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -213,4 +240,7 @@ async def get_current_user_profile(
         email=current_user.email,
         role=current_user.role,
         is_active=current_user.is_active,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        profile_complete=current_user.profile_complete,
     )
