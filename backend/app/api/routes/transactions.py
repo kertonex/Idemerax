@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_completed_current_user
@@ -21,10 +23,25 @@ from app.infrastructure.repositories.user import UserRepository
 from app.schemas.transaction import (
     IbanBankIdentificationResponse,
     TransactionCreateRequest,
+    TransactionHistoryItem,
+    TransactionHistoryResponse,
     TransactionResponse,
 )
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+def _get_transfer_method(
+    value: str | None,
+) -> Literal["iban", "email"] | None:
+    """Return a supported transfer method or None for unknown values."""
+    if value == "iban":
+        return "iban"
+
+    if value == "email":
+        return "email"
+
+    return None
 
 
 @router.get(
@@ -56,6 +73,70 @@ async def identify_iban_bank_details(
         bank_code=bank_information.bank_code,
         bank_name=bank_information.bank_name,
         bic=bank_information.bic,
+    )
+
+
+@router.get(
+    "",
+    response_model=TransactionHistoryResponse,
+)
+async def get_transaction_history(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_completed_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionHistoryResponse:
+    """Return a paginated history for the authenticated user."""
+    repository = TransactionRepository(session)
+
+    transactions, total = await repository.list_for_user(
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset,
+    )
+
+    items: list[TransactionHistoryItem] = []
+
+    for transaction, direction in transactions:
+        counterparty_account = (
+            transaction.destination_account
+            if direction == "outgoing"
+            else transaction.source_account
+        )
+        counterparty_user = counterparty_account.user
+
+        full_name = " ".join(
+            part
+            for part in (
+                counterparty_user.first_name,
+                counterparty_user.last_name,
+            )
+            if part and part.strip()
+        ).strip()
+
+        items.append(
+            TransactionHistoryItem(
+                id=transaction.id,
+                created_at=transaction.created_at,
+                source_account_id=transaction.source_account_id,
+                destination_account_id=transaction.destination_account_id,
+                amount=transaction.amount,
+                transaction_type=transaction.transaction_type,
+                status=transaction.status,
+                reference=transaction.reference,
+                transfer_method=_get_transfer_method(transaction.transfer_method),
+                direction=direction,
+                counterparty_name=full_name or None,
+                counterparty_email=counterparty_user.email,
+                counterparty_iban=counterparty_account.iban,
+            )
+        )
+
+    return TransactionHistoryResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -103,4 +184,5 @@ async def create_transaction(
         transaction_type=transaction.transaction_type,
         status=transaction.status,
         reference=transaction.reference,
+        transfer_method=_get_transfer_method(transaction.transfer_method),
     )
