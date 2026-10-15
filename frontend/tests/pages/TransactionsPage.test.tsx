@@ -1,7 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-
 import userEvent from '@testing-library/user-event';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -111,7 +109,6 @@ describe('TransactionsPage', () => {
     );
 
     expect(await screen.findByText('Idemerax')).toBeInTheDocument();
-
     expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
     expect(screen.getByText('Bank identified')).toBeInTheDocument();
 
@@ -162,7 +159,6 @@ describe('TransactionsPage', () => {
     });
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
@@ -182,7 +178,6 @@ describe('TransactionsPage', () => {
     });
 
     expect(screen.getByText('Transfer completed')).toBeInTheDocument();
-
     expect(screen.getByText('250,00 €')).toBeInTheDocument();
     expect(screen.getByText('#42')).toBeInTheDocument();
     expect(screen.getByText('COMPLETED')).toBeInTheDocument();
@@ -229,9 +224,7 @@ describe('TransactionsPage', () => {
     });
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250');
-
     await user.type(screen.getByLabelText('Reference (optional)'), 'Rent');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
@@ -271,7 +264,6 @@ describe('TransactionsPage', () => {
     });
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
@@ -307,7 +299,6 @@ describe('TransactionsPage', () => {
     });
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
@@ -382,7 +373,6 @@ describe('TransactionsPage', () => {
     });
 
     await user.type(screen.getByLabelText('Recipient IBAN'), VALID_IBAN);
-
     await user.type(screen.getByLabelText('Amount'), '250');
 
     await user.click(screen.getByRole('button', { name: 'Send money' }));
@@ -403,7 +393,6 @@ describe('TransactionsPage', () => {
     render(<TransactionsPage />);
 
     expect(screen.getByText('Not authenticated.')).toBeInTheDocument();
-
     expect(mockGetMyAccount).not.toHaveBeenCalled();
     expect(mockGetIbanBankDetails).not.toHaveBeenCalled();
   });
@@ -489,7 +478,7 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+    await user.click(screen.getByRole('tab', { name: 'Receive Money' }));
 
     expect(
       screen.getByRole('heading', { name: 'Receive Money' }),
@@ -521,10 +510,9 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+    await user.click(screen.getByRole('tab', { name: 'Receive Money' }));
 
     expect(screen.getByText('DE89 3704 0044 0532 0130 00')).toBeInTheDocument();
-
     expect(screen.getByText('IDEMDEFFXXX')).toBeInTheDocument();
     expect(screen.getByText('user@example.com')).toBeInTheDocument();
   });
@@ -552,7 +540,7 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+    await user.click(screen.getByRole('tab', { name: 'Receive Money' }));
 
     const copyButton = screen.getByRole('button', {
       name: 'Copy IBAN',
@@ -589,7 +577,7 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+    await user.click(screen.getByRole('tab', { name: 'Receive Money' }));
 
     const copyButton = screen.getByRole('button', {
       name: 'Copy BIC',
@@ -626,7 +614,7 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: 'Receive Money' }));
+    await user.click(screen.getByRole('tab', { name: 'Receive Money' }));
 
     const copyButton = screen.getByRole('button', {
       name: 'Copy Email',
