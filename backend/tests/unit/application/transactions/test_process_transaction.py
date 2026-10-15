@@ -96,6 +96,7 @@ async def test_process_transaction_successfully_transfers_funds(
         transaction_type="TRANSFER",
         status="COMPLETED",
         reference=None,
+        transfer_method="iban",
     )
 
 
@@ -127,6 +128,7 @@ async def test_process_transaction_saves_reference(
         transaction_type="TRANSFER",
         status="COMPLETED",
         reference="Invoice 2026-001",
+        transfer_method="iban",
     )
 
 
@@ -160,6 +162,7 @@ async def test_process_transaction_accepts_missing_or_blank_reference(
         transaction_type="TRANSFER",
         status="COMPLETED",
         reference=None,
+        transfer_method="iban",
     )
 
 
@@ -211,6 +214,7 @@ async def test_process_transaction_accepts_reference_of_140_characters(
         transaction_type="TRANSFER",
         status="COMPLETED",
         reference=reference,
+        transfer_method="iban",
     )
 
 
@@ -365,6 +369,7 @@ async def test_process_transaction_successfully_transfers_funds_to_email_recipie
         transaction_type="TRANSFER",
         status="COMPLETED",
         reference=None,
+        transfer_method="email",
     )
 
 
