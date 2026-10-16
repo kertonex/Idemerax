@@ -22,6 +22,23 @@ export type Transaction = {
   reference: string | null;
   transaction_type: string;
   status: string;
+  transfer_method?: 'iban' | 'email' | null;
+};
+
+export type TransactionDirection = 'incoming' | 'outgoing';
+
+export type TransactionHistoryItem = Transaction & {
+  direction: TransactionDirection;
+  counterparty_name?: string | null;
+  counterparty_email?: string | null;
+  counterparty_iban?: string | null;
+};
+
+export type TransactionHistoryResponse = {
+  items: TransactionHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
 };
 
 export function getIbanBankDetails(
@@ -49,4 +66,24 @@ export function createTransaction(
     },
     body: transactionData,
   });
+}
+
+export function getTransactionHistory(
+  accessToken: string,
+  limit = 10,
+  offset = 0,
+): Promise<TransactionHistoryResponse> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiClient<TransactionHistoryResponse>(
+    `/transactions?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
 }

@@ -138,4 +138,5 @@ class TransactionProcessing:
             transaction_type="TRANSFER",
             status="COMPLETED",
             reference=normalized_reference,
+            transfer_method="iban" if destination_iban is not None else "email",
         )

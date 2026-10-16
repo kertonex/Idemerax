@@ -8,8 +8,9 @@ import {
   type Transaction,
 } from '../features/transactions/api/transactions';
 import TransactionForm from '../features/transactions/components/TransactionForm';
+import TransactionHistory from '../features/transactions/components/TransactionHistory';
 
-type TransactionMode = 'send' | 'receive';
+type TransactionMode = 'send' | 'receive' | 'history';
 
 function formatAmount(amount: string): string {
   const value = Number(amount);
@@ -211,6 +212,20 @@ function TransactionsPage() {
     }
   }
 
+  function changeMode(nextMode: TransactionMode): void {
+    setMode(nextMode);
+    setTransaction(null);
+    setError(null);
+  }
+
+  function getTabClass(tab: TransactionMode): string {
+    return `rounded-lg px-4 py-2.5 text-sm font-medium transition sm:px-5 ${
+      mode === tab
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
+        : 'text-slate-400 hover:text-white'
+    }`;
+  }
+
   return (
     <section className="space-y-8">
       <header>
@@ -223,69 +238,213 @@ function TransactionsPage() {
         </h1>
 
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-          Send money to another financial account or share your payment details
-          to receive a transfer.
+          Send money, receive money and view your transaction history.
         </p>
       </header>
 
-      <div className="inline-flex rounded-xl border border-slate-700/80 bg-slate-950/70 p-1">
+      <div
+        role="tablist"
+        aria-label="Transaction sections"
+        className="flex w-full flex-wrap gap-1 rounded-xl border border-slate-700/80 bg-slate-950/70 p-1 sm:w-fit"
+      >
         <button
           type="button"
-          onClick={() => {
-            setMode('send');
-            setTransaction(null);
-            setError(null);
-          }}
-          className={`rounded-lg px-5 py-2.5 text-sm font-medium transition ${
-            mode === 'send'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
-              : 'text-slate-400 hover:text-white'
-          }`}
-          aria-pressed={mode === 'send'}
+          role="tab"
+          id="transactions-send-tab"
+          aria-selected={mode === 'send'}
+          aria-controls="transactions-tab-panel"
+          onClick={() => changeMode('send')}
+          className={getTabClass('send')}
         >
           Send Money
         </button>
 
         <button
           type="button"
-          onClick={() => {
-            setMode('receive');
-            setTransaction(null);
-            setError(null);
-          }}
-          className={`rounded-lg px-5 py-2.5 text-sm font-medium transition ${
-            mode === 'receive'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
-              : 'text-slate-400 hover:text-white'
-          }`}
-          aria-pressed={mode === 'receive'}
+          role="tab"
+          id="transactions-receive-tab"
+          aria-selected={mode === 'receive'}
+          aria-controls="transactions-tab-panel"
+          onClick={() => changeMode('receive')}
+          className={getTabClass('receive')}
         >
           Receive Money
         </button>
+
+        <button
+          type="button"
+          role="tab"
+          id="transactions-history-tab"
+          aria-selected={mode === 'history'}
+          aria-controls="transactions-tab-panel"
+          onClick={() => changeMode('history')}
+          className={getTabClass('history')}
+        >
+          Transaction History
+        </button>
       </div>
 
-      {mode === 'send' ? (
-        <>
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div>
-              <TransactionForm
-                accessToken={accessToken}
-                isSubmitting={isSubmitting}
-                error={error}
-                onSubmit={handleTransaction}
-                availableBalance={account?.balance ?? null}
-                isLoadingBalance={isLoadingAccount}
-              />
+      <div
+        id="transactions-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`transactions-${mode}-tab`}
+        className="min-w-0"
+      >
+        {mode === 'history' ? (
+          <TransactionHistory accessToken={accessToken} />
+        ) : mode === 'send' ? (
+          <>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div>
+                <TransactionForm
+                  accessToken={accessToken}
+                  isSubmitting={isSubmitting}
+                  error={error}
+                  onSubmit={handleTransaction}
+                  availableBalance={
+                    accessToken ? (account?.balance ?? null) : null
+                  }
+                  isLoadingBalance={Boolean(accessToken) && isLoadingAccount}
+                />
 
-              {(!accessToken || accountError) && (
-                <p className="mt-3 text-sm text-slate-500">
-                  {!accessToken ? 'Not authenticated.' : accountError}
-                </p>
-              )}
+                {(!accessToken || accountError) && (
+                  <p className="mt-3 text-sm text-slate-500">
+                    {!accessToken ? 'Not authenticated.' : accountError}
+                  </p>
+                )}
+              </div>
+
+              <aside className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/30">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(37,99,235,0.12),transparent_45%)]" />
+
+                <div className="relative">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 ring-1 ring-blue-500/20">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5 text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="m9 12 2 2 4-4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+
+                  <h2 className="mt-5 text-lg font-semibold text-white">
+                    Secure transfer
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Send money securely to another Idemerax account using the
+                    recipient&apos;s IBAN or account email.
+                  </p>
+
+                  <div className="mt-6 space-y-4 border-t border-slate-800 pt-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-slate-500">
+                        Transaction type
+                      </span>
+                      <span className="text-sm font-medium text-slate-200">
+                        Transfer
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-slate-500">Currency</span>
+                      <span className="text-sm font-medium text-slate-200">
+                        EUR
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </aside>
             </div>
 
-            <aside className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/30">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(37,99,235,0.12),transparent_45%)]" />
+            {transaction && (
+              <section className="mt-6 overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/5 shadow-xl shadow-slate-950/20">
+                <div className="flex items-start gap-4 p-6 sm:p-7">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/20">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5 text-emerald-400"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m5 12 4 4L19 6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.15em] text-emerald-400">
+                          Transfer completed
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                          {formatAmount(transaction.amount)}
+                        </p>
+                      </div>
+
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-400 ring-1 ring-emerald-500/20">
+                        {transaction.status}
+                      </span>
+                    </div>
+
+                    {transaction.reference && (
+                      <div className="mt-4">
+                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                          Reference
+                        </p>
+                        <p className="mt-1 break-words text-sm text-slate-300">
+                          {transaction.reference}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-5 grid gap-4 border-t border-emerald-500/10 pt-5 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                          Transaction ID
+                        </p>
+                        <p className="mt-1 font-mono text-sm text-slate-300">
+                          #{transaction.id}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                          Processed
+                        </p>
+                        <p className="mt-1 text-sm text-slate-300">
+                          {formatCreatedAt(transaction.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        ) : (
+          <section className="max-w-3xl overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 shadow-xl shadow-slate-950/30">
+            <div className="relative p-6 sm:p-8">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(37,99,235,0.10),transparent_40%)]" />
 
               <div className="relative">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 ring-1 ring-blue-500/20">
@@ -297,247 +456,114 @@ function TransactionsPage() {
                     strokeWidth="1.8"
                     aria-hidden="true"
                   >
-                    <path
-                      d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="m9 12 2 2 4-4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M12 3v18M5 8h14M5 16h14" strokeLinecap="round" />
                   </svg>
                 </div>
 
-                <h2 className="mt-5 text-lg font-semibold text-white">
-                  Secure transfer
+                <h2 className="mt-5 text-xl font-semibold text-white">
+                  Receive Money
                 </h2>
 
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Send money securely to another Idemerax account using the
-                  recipient&apos;s IBAN or account email.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                  Share one of the following details with someone who wants to
+                  send money to your Idemerax account.
                 </p>
 
-                <div className="mt-6 space-y-4 border-t border-slate-800 pt-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-slate-500">
-                      Transaction type
-                    </span>
-
-                    <span className="text-sm font-medium text-slate-200">
-                      Transfer
-                    </span>
+                {!accessToken ? (
+                  <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
+                    Not authenticated.
                   </div>
-
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm text-slate-500">Currency</span>
-
-                    <span className="text-sm font-medium text-slate-200">
-                      EUR
-                    </span>
+                ) : isLoadingAccount || isLoadingUser ? (
+                  <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
+                    Loading your payment details...
                   </div>
-                </div>
-              </div>
-            </aside>
-          </div>
-
-          {transaction && (
-            <section className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/5 shadow-xl shadow-slate-950/20">
-              <div className="flex items-start gap-4 p-6 sm:p-7">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/20">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5 text-emerald-400"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
+                ) : accountError || userError ? (
+                  <div
+                    role="alert"
+                    className="mt-8 rounded-xl border border-red-500/20 bg-red-500/5 p-5 text-sm text-red-300"
                   >
-                    <path
-                      d="m5 12 4 4L19 6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium uppercase tracking-[0.15em] text-emerald-400">
-                        Transfer completed
-                      </p>
-
-                      <p className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                        {formatAmount(transaction.amount)}
-                      </p>
-                    </div>
-
-                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-400 ring-1 ring-emerald-500/20">
-                      {transaction.status}
-                    </span>
+                    {accountError ?? userError}
                   </div>
+                ) : accessToken && account && userEmail ? (
+                  <div className="mt-8 space-y-4">
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                            IBAN
+                          </p>
+                          <p className="mt-2 break-all font-mono text-sm text-slate-200">
+                            {formatIban(account.iban)}
+                          </p>
+                        </div>
 
-                  {transaction.reference && (
-                    <div className="mt-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                        Reference
-                      </p>
-
-                      <p className="mt-1 break-words text-sm text-slate-300">
-                        {transaction.reference}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="mt-5 grid gap-4 border-t border-emerald-500/10 pt-5 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                        Transaction ID
-                      </p>
-
-                      <p className="mt-1 font-mono text-sm text-slate-300">
-                        #{transaction.id}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                        Processed
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-300">
-                        {formatCreatedAt(transaction.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-        </>
-      ) : (
-        <section className="max-w-3xl overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/70 shadow-xl shadow-slate-950/30">
-          <div className="relative p-6 sm:p-8">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(37,99,235,0.10),transparent_40%)]" />
-
-            <div className="relative">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600/15 ring-1 ring-blue-500/20">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5 text-blue-400"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  aria-hidden="true"
-                >
-                  <path d="M12 3v18M5 8h14M5 16h14" strokeLinecap="round" />
-                </svg>
-              </div>
-
-              <h2 className="mt-5 text-xl font-semibold text-white">
-                Receive Money
-              </h2>
-
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Share one of the following details with someone who wants to
-                send money to your Idemerax account.
-              </p>
-
-              {isLoadingAccount || isLoadingUser ? (
-                <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
-                  Loading your payment details...
-                </div>
-              ) : accountError || userError ? (
-                <div
-                  role="alert"
-                  className="mt-8 rounded-xl border border-red-500/20 bg-red-500/5 p-5 text-sm text-red-300"
-                >
-                  {accountError ?? userError}
-                </div>
-              ) : account && userEmail ? (
-                <div className="mt-8 space-y-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                          IBAN
-                        </p>
-
-                        <p className="mt-2 break-all font-mono text-sm text-slate-200">
-                          {formatIban(account.iban)}
-                        </p>
+                        <CopyButton
+                          value={account.iban}
+                          label="IBAN"
+                          copiedField={copiedField}
+                          onCopy={handleCopy}
+                        />
                       </div>
-
-                      <CopyButton
-                        value={account.iban}
-                        label="IBAN"
-                        copiedField={copiedField}
-                        onCopy={handleCopy}
-                      />
                     </div>
-                  </div>
 
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                          BIC
-                        </p>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                            BIC
+                          </p>
+                          <p className="mt-2 break-all font-mono text-sm text-slate-200">
+                            {account.bic}
+                          </p>
+                        </div>
 
-                        <p className="mt-2 break-all font-mono text-sm text-slate-200">
-                          {account.bic}
-                        </p>
+                        <CopyButton
+                          value={account.bic}
+                          label="BIC"
+                          copiedField={copiedField}
+                          onCopy={handleCopy}
+                        />
                       </div>
-
-                      <CopyButton
-                        value={account.bic}
-                        label="BIC"
-                        copiedField={copiedField}
-                        onCopy={handleCopy}
-                      />
                     </div>
-                  </div>
 
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
-                          Email
-                        </p>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium uppercase tracking-[0.15em] text-slate-500">
+                            Email
+                          </p>
+                          <p className="mt-2 break-all text-sm text-slate-200">
+                            {userEmail}
+                          </p>
+                        </div>
 
-                        <p className="mt-2 break-all text-sm text-slate-200">
-                          {userEmail}
-                        </p>
+                        <CopyButton
+                          value={userEmail}
+                          label="Email"
+                          copiedField={copiedField}
+                          onCopy={handleCopy}
+                        />
                       </div>
-
-                      <CopyButton
-                        value={userEmail}
-                        label="Email"
-                        copiedField={copiedField}
-                        onCopy={handleCopy}
-                      />
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
-                  No payment details are available.
-                </div>
-              )}
+                ) : (
+                  <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
+                    No payment details are available.
+                  </div>
+                )}
 
-              <div className="mt-6 rounded-xl border border-blue-500/10 bg-blue-500/5 p-5">
-                <p className="text-sm leading-6 text-slate-400">
-                  <span className="font-medium text-slate-200">Tip:</span> Share
-                  your email address when the sender uses the Email recipient
-                  option, or share your IBAN for an IBAN transfer.
-                </p>
+                <div className="mt-6 rounded-xl border border-blue-500/10 bg-blue-500/5 p-5">
+                  <p className="text-sm leading-6 text-slate-400">
+                    <span className="font-medium text-slate-200">Tip:</span>{' '}
+                    Share your email address when the sender uses the Email
+                    recipient option, or share your IBAN for an IBAN transfer.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
+      </div>
     </section>
   );
 }
