@@ -39,6 +39,21 @@ def test_database_models_define_expected_columns() -> None:
     assert isinstance(Card.__table__.c.status.type, String)
 
 
+def test_card_model_requires_account_and_masks_card_data() -> None:
+    """Ensure card records link to accounts and store only the last four digits."""
+    card_columns = Card.__table__.c
+
+    assert card_columns.account_id.nullable is False
+
+    last_four_type = card_columns.last_four.type
+    assert isinstance(last_four_type, String)
+    assert last_four_type.length == 4
+
+    assert card_columns.created_at.nullable is False
+    assert "account_id" in card_columns
+    assert not {"card_number", "pan", "cvv"}.intersection(card_columns.keys())
+
+
 def test_transaction_amount_has_expected_precision() -> None:
     """Verify that transaction amounts use the defined monetary precision."""
     amount_type = Transaction.__table__.c.amount.type

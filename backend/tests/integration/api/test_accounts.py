@@ -197,3 +197,49 @@ async def test_create_account_rejects_incomplete_profile() -> None:
     assert response.json() == {
         "detail": "Profile completion is required.",
     }
+
+
+@pytest.mark.anyio
+async def test_get_my_accounts_returns_only_the_authenticated_users_accounts() -> None:
+    """List all of the authenticated user's accounts without leaking others."""
+    async with SessionFactory() as session:
+        owner = User(
+            email=f"accounts-list-owner-{uuid4()}@example.com",
+            password_hash=hash_password("test-password"),
+            first_name="Account",
+            last_name="Owner",
+        )
+        other_user = User(
+            email=f"accounts-list-other-{uuid4()}@example.com",
+            password_hash=hash_password("test-password"),
+            first_name="Other",
+            last_name="User",
+        )
+        session.add_all([owner, other_user])
+        await session.flush()
+        repository = AccountRepository(session)
+        first_account = await repository.create(user_id=owner.id)
+        second_account = await repository.create(user_id=owner.id)
+        await repository.create(user_id=other_user.id)
+        owner_id = owner.id
+        expected_account_ids = {first_account.id, second_account.id}
+        await session.commit()
+
+    token = create_access_token(str(owner_id))
+    response = client.get(
+        "/accounts",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert {item["id"] for item in data} == expected_account_ids
+    assert all(item["user_id"] == owner_id for item in data)
+
+
+@pytest.mark.anyio
+async def test_get_my_accounts_requires_authentication() -> None:
+    """Protect the account list endpoint."""
+    response = client.get("/accounts")
+
+    assert response.status_code == 401
