@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
+    from app.infrastructure.database.models.card import Card
     from app.infrastructure.database.models.financial_institution import (
         FinancialInstitution,
     )
@@ -74,4 +75,9 @@ class Account(Base):
     destination_transactions: Mapped[list["Transaction"]] = relationship(
         foreign_keys="Transaction.destination_account_id",
         back_populates="destination_account",
+    )
+
+    cards: Mapped[list["Card"]] = relationship(
+        back_populates="account",
+        cascade="all, delete-orphan",
     )

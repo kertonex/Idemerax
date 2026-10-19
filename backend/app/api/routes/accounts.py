@@ -41,6 +41,31 @@ async def create_account(
 
 
 @router.get(
+    "",
+    response_model=list[AccountResponse],
+)
+async def get_my_accounts(
+    current_user: User = Depends(get_completed_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[AccountResponse]:
+    """Return all financial accounts belonging to the authenticated user."""
+    account_repository = AccountRepository(session)
+    accounts = await account_repository.list_by_user_id(user_id=current_user.id)
+    return [
+        AccountResponse(
+            id=account.id,
+            user_id=account.user_id,
+            account_number=account.account_number,
+            iban=account.iban,
+            bic=account.institution.bic,
+            created_at=account.created_at,
+            balance=account.balance,
+        )
+        for account in accounts
+    ]
+
+
+@router.get(
     "/me",
     response_model=AccountResponse,
 )
