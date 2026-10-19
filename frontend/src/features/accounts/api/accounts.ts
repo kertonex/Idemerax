@@ -17,3 +17,12 @@ export function getMyAccount(accessToken: string): Promise<Account> {
     },
   });
 }
+
+/** Retrieve all financial accounts belonging to the authenticated user. */
+export function getMyAccounts(accessToken: string): Promise<Account[]> {
+  return apiClient<Account[]>('/accounts', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}

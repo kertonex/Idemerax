@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { useAuth } from '../features/authentication/context/useAuth';
 import AccountsPage from '../pages/AccountsPage';
+import CardsPage from '../pages/CardsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import SettingsPage from '../pages/SettingsPage';
@@ -15,10 +16,6 @@ function DashboardPage() {
   }, []);
 
   return <h1 className="text-2xl font-semibold">Dashboard</h1>;
-}
-
-function CardsPage() {
-  return <h1 className="text-2xl font-semibold">Cards</h1>;
 }
 
 function ReliabilityPage() {

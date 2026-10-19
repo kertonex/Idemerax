@@ -26,13 +26,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   const authOperationRef = useRef(0);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      authOperationRef.current += 1;
+    };
+  }, []);
 
   const loadUser = useCallback(
     async (token: string, operation: number): Promise<boolean> => {
       try {
         const user = await getCurrentUser(token);
 
-        if (operation !== authOperationRef.current) {
+        if (!isMountedRef.current || operation !== authOperationRef.current) {
           return false;
         }
 
@@ -40,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         return true;
       } catch {
-        if (operation === authOperationRef.current) {
+        if (isMountedRef.current && operation === authOperationRef.current) {
           setCurrentUserState(null);
         }
 
@@ -61,12 +71,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (storedAccessToken) {
         const restored = await loadUser(storedAccessToken, operation);
 
-        if (restored) {
-          if (operation === authOperationRef.current) {
-            setAccessTokenState(storedAccessToken);
-            setIsLoading(false);
-          }
+        if (!isMountedRef.current || operation !== authOperationRef.current) {
+          return;
+        }
 
+        if (restored) {
+          setAccessTokenState(storedAccessToken);
+          setIsLoading(false);
           return;
         }
       }
@@ -74,7 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const response = await refreshAccessToken();
 
-        if (operation !== authOperationRef.current) {
+        if (!isMountedRef.current || operation !== authOperationRef.current) {
           return;
         }
 
@@ -82,7 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         const restored = await loadUser(response.access_token, operation);
 
-        if (operation !== authOperationRef.current) {
+        if (!isMountedRef.current || operation !== authOperationRef.current) {
           return;
         }
 
@@ -94,7 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setCurrentUserState(null);
         }
       } catch {
-        if (operation !== authOperationRef.current) {
+        if (!isMountedRef.current || operation !== authOperationRef.current) {
           return;
         }
 
@@ -102,7 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setAccessTokenState(null);
         setCurrentUserState(null);
       } finally {
-        if (operation === authOperationRef.current) {
+        if (isMountedRef.current && operation === authOperationRef.current) {
           setIsLoading(false);
         }
       }
@@ -136,7 +147,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           const response = await refreshAccessToken();
 
-          if (operation !== authOperationRef.current) {
+          if (!isMountedRef.current || operation !== authOperationRef.current) {
             return;
           }
 
@@ -147,7 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           const restored = await loadUser(response.access_token, operation);
 
-          if (operation !== authOperationRef.current) {
+          if (!isMountedRef.current || operation !== authOperationRef.current) {
             return;
           }
 
@@ -159,7 +170,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setCurrentUserState(null);
           }
         } catch {
-          if (operation !== authOperationRef.current) {
+          if (!isMountedRef.current || operation !== authOperationRef.current) {
             return;
           }
 
@@ -167,7 +178,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setAccessTokenState(null);
           setCurrentUserState(null);
         } finally {
-          if (operation === authOperationRef.current) {
+          if (isMountedRef.current && operation === authOperationRef.current) {
             setIsLoading(false);
           }
         }
@@ -191,7 +202,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
 
       void loadUser(token, operation).finally(() => {
-        if (operation === authOperationRef.current) {
+        if (isMountedRef.current && operation === authOperationRef.current) {
           setIsLoading(false);
         }
       });
