@@ -66,6 +66,16 @@ class AccountRepository:
 
         return result.scalar_one_or_none()
 
+    async def list_by_user_id(self, user_id: int) -> list[Account]:
+        """Return all financial accounts belonging to the user."""
+        result = await self.session.execute(
+            select(Account)
+            .options(selectinload(Account.institution))
+            .where(Account.user_id == user_id)
+            .order_by(Account.created_at.desc(), Account.id.desc())
+        )
+        return list(result.scalars().all())
+
     async def get_by_user_id(self, user_id: int) -> Account | None:
         """Return the account belonging to the user."""
         result = await self.session.execute(
@@ -74,6 +84,22 @@ class AccountRepository:
             .where(Account.user_id == user_id)
         )
 
+        return result.scalar_one_or_none()
+
+    async def get_by_id_for_user(
+        self,
+        account_id: int,
+        user_id: int,
+    ) -> Account | None:
+        """Return an account only when it belongs to the specified user."""
+        result = await self.session.execute(
+            select(Account)
+            .options(selectinload(Account.institution))
+            .where(
+                Account.id == account_id,
+                Account.user_id == user_id,
+            )
+        )
         return result.scalar_one_or_none()
 
     async def get_by_iban(self, iban: str) -> Account | None:

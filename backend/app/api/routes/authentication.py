@@ -89,7 +89,7 @@ async def login(
 
     return {
         "access_token": access_token,
-        "token_type": "bearer", # nosec B105
+        "token_type": "bearer",  # nosec B105
     }
 
 
@@ -151,7 +151,7 @@ async def register(
 
     return {
         "access_token": access_token,
-        "token_type": "bearer", # nosec B105
+        "token_type": "bearer",  # nosec B105
     }
 
 
@@ -199,7 +199,7 @@ async def refresh_access_token(
 
     return {
         "access_token": access_token,
-        "token_type": "bearer", # nosec B105
+        "token_type": "bearer",  # nosec B105
     }
 
 
