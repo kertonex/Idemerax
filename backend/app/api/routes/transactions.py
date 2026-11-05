@@ -485,10 +485,12 @@ async def create_transaction(
     session: AsyncSession = Depends(get_session),
 ) -> TransactionResponse:
     """Durably reserve a transfer before attempting its execution."""
+    # Capture the scalar before database operations can expire the ORM instance.
+    user_id = current_user.id
     service = RecoverTransaction(session)
     try:
         prior_status, _prior_operation, prior_transaction = await service.get_status(
-            user_id=current_user.id,
+            user_id=user_id,
             idempotency_key=idempotency_key,
         )
         if prior_status == "COMPLETED" and prior_transaction is not None:
@@ -514,7 +516,7 @@ async def create_transaction(
             return _to_transaction_response(prior_transaction)
 
         _operation, reservation_created = await service.reserve(
-            user_id=current_user.id,
+            user_id=user_id,
             idempotency_key=idempotency_key,
             destination_iban=transaction_data.destination_iban,
             destination_email=(
@@ -528,7 +530,7 @@ async def create_transaction(
         operation_status, operation, transaction = await _resume_transaction_with_retry(
             service=service,
             session=session,
-            user_id=current_user.id,
+            user_id=user_id,
             idempotency_key=idempotency_key,
         )
     except HTTPException:
