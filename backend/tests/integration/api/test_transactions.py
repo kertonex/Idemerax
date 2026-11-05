@@ -1,8 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.security import create_access_token, hash_password
 from app.infrastructure.database.models.account import Account
@@ -14,9 +16,16 @@ from app.main import app
 
 client = TestClient(app)
 
-
 VALID_IBAN = "DE89370400440532013000"
 IDEMERAX_IBAN = "DE87123456781234567890"
+
+
+def idempotency_headers(access_token: str) -> dict[str, str]:
+    """Build authenticated headers with a unique idempotency key."""
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": f"test-transaction-{uuid4()}",
+    }
 
 
 async def create_user_with_account(
@@ -86,7 +95,7 @@ async def test_identify_iban_bank_rejects_unknown_bank() -> None:
     response = client.get(
         "/transactions/bank-details",
         headers={"Authorization": f"Bearer {access_token}"},
-        params={"iban": "DE89370400440532013000"},
+        params={"iban": VALID_IBAN},
     )
 
     assert response.status_code == 400
@@ -100,6 +109,7 @@ async def test_create_transaction_requires_authentication() -> None:
     """Reject transaction creation without authentication."""
     response = client.post(
         "/transactions",
+        headers={"Idempotency-Key": f"unauthenticated-{uuid4()}"},
         json={
             "destination_iban": VALID_IBAN,
             "amount": "100.00",
@@ -119,7 +129,7 @@ async def test_create_transaction_transfers_funds_and_persists_transaction() -> 
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": destination_account.iban,
             "amount": "125.5000",
@@ -174,7 +184,7 @@ async def test_create_transaction_derives_source_from_authenticated_user() -> No
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": destination_account.iban,
             "amount": "100.00",
@@ -222,7 +232,7 @@ async def test_create_transaction_normalizes_destination_iban() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": formatted_iban,
             "amount": "100.00",
@@ -251,7 +261,7 @@ async def test_create_transaction_rejects_invalid_destination_iban() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": "DE00000000000000000000",
             "amount": "100.00",
@@ -277,7 +287,7 @@ async def test_create_transaction_rejects_same_source_and_destination() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": source_account.iban,
             "amount": "100.00",
@@ -304,7 +314,7 @@ async def test_create_transaction_rejects_insufficient_funds() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": destination_account.iban,
             "amount": "100.00",
@@ -312,7 +322,7 @@ async def test_create_transaction_rejects_insufficient_funds() -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Insufficient funds."
+    assert response.json()["detail"] == "Transfer failed: INSUFFICIENT_FUNDS"
 
     async with SessionFactory() as session:
         persisted_source = await session.get(Account, source_account.id)
@@ -346,7 +356,7 @@ async def test_create_transaction_rejects_non_positive_amount(
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": VALID_IBAN,
             "amount": amount,
@@ -365,7 +375,7 @@ async def test_create_transaction_rejects_excessive_precision() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": VALID_IBAN,
             "amount": "100.12345",
@@ -394,7 +404,7 @@ async def test_create_transaction_rejects_incomplete_profile() -> None:
 
     response = client.post(
         "/transactions",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=idempotency_headers(access_token),
         json={
             "destination_iban": VALID_IBAN,
             "amount": "100.00",
@@ -405,3 +415,354 @@ async def test_create_transaction_rejects_incomplete_profile() -> None:
     assert response.json() == {
         "detail": "Profile completion is required.",
     }
+
+
+@pytest.mark.anyio
+async def test_replays_same_key_without_duplicate_side_effects() -> None:
+    """Replay an equivalent request without transferring funds twice."""
+    source_user_id, source_account = await create_user_with_account("1000.0000")
+    _, destination_account = await create_user_with_account("250.0000")
+
+    access_token = create_access_token(str(source_user_id))
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": f"transaction-replay-{uuid4()}",
+    }
+
+    payload = {
+        "destination_iban": destination_account.iban,
+        "amount": "100.00",
+        "reference": "Replay-safe transfer",
+    }
+
+    first_response = client.post(
+        "/transactions",
+        headers=headers,
+        json=payload,
+    )
+
+    replay_response = client.post(
+        "/transactions",
+        headers=headers,
+        json=payload,
+    )
+
+    assert first_response.status_code == 201
+    assert replay_response.status_code == 200
+    assert replay_response.json()["id"] == first_response.json()["id"]
+
+    async with SessionFactory() as session:
+        persisted_source = await session.get(Account, source_account.id)
+        persisted_destination = await session.get(
+            Account,
+            destination_account.id,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.source_account_id == source_account.id,
+                Transaction.idempotency_key == headers["Idempotency-Key"],
+            )
+        )
+
+        persisted_transactions = list(result.scalars().all())
+
+    assert persisted_source is not None
+    assert persisted_destination is not None
+
+    assert persisted_source.balance == Decimal("900.0000")
+    assert persisted_destination.balance == Decimal("350.0000")
+
+    assert len(persisted_transactions) == 1
+    assert persisted_transactions[0].id == first_response.json()["id"]
+    assert persisted_transactions[0].request_fingerprint is not None
+
+
+@pytest.mark.anyio
+async def test_create_transaction_rejects_same_key_with_different_payload() -> None:
+    """Reject changed transfer intent without applying another transfer."""
+    source_user_id, source_account = await create_user_with_account("1000.0000")
+    _, destination_account = await create_user_with_account("250.0000")
+
+    access_token = create_access_token(str(source_user_id))
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": f"transaction-conflict-{uuid4()}",
+    }
+
+    original_payload = {
+        "destination_iban": destination_account.iban,
+        "amount": "100.00",
+        "reference": "Original transfer",
+    }
+
+    changed_payload = {
+        **original_payload,
+        "amount": "150.00",
+    }
+
+    first_response = client.post(
+        "/transactions",
+        headers=headers,
+        json=original_payload,
+    )
+
+    conflict_response = client.post(
+        "/transactions",
+        headers=headers,
+        json=changed_payload,
+    )
+
+    assert first_response.status_code == 201
+    assert conflict_response.status_code == 409
+
+    async with SessionFactory() as session:
+        persisted_source = await session.get(Account, source_account.id)
+        persisted_destination = await session.get(
+            Account,
+            destination_account.id,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.source_account_id == source_account.id,
+                Transaction.idempotency_key == headers["Idempotency-Key"],
+            )
+        )
+
+        persisted_transactions = list(result.scalars().all())
+
+    assert persisted_source is not None
+    assert persisted_destination is not None
+
+    assert persisted_source.balance == Decimal("900.0000")
+    assert persisted_destination.balance == Decimal("350.0000")
+
+    assert len(persisted_transactions) == 1
+    assert persisted_transactions[0].id == first_response.json()["id"]
+
+
+@pytest.mark.anyio
+async def test_concurrent_identical_requests_create_one_transaction() -> None:
+    """Return one persisted result for simultaneous identical requests."""
+    source_user_id, source_account = await create_user_with_account("1000.0000")
+    _, destination_account = await create_user_with_account("250.0000")
+
+    access_token = create_access_token(str(source_user_id))
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": f"transaction-concurrent-{uuid4()}",
+    }
+
+    payload = {
+        "destination_iban": destination_account.iban,
+        "amount": "125.00",
+        "reference": "Concurrent duplicate request",
+    }
+
+    def send_request(_index: int):
+        return client.post(
+            "/transactions",
+            headers=headers,
+            json=payload,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(send_request, range(2)))
+
+    assert sorted(response.status_code for response in responses) == [
+        200,
+        201,
+    ]
+
+    transaction_ids = {response.json()["id"] for response in responses}
+
+    assert len(transaction_ids) == 1
+
+    async with SessionFactory() as session:
+        persisted_source = await session.get(Account, source_account.id)
+        persisted_destination = await session.get(
+            Account,
+            destination_account.id,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.source_account_id == source_account.id,
+                Transaction.idempotency_key == headers["Idempotency-Key"],
+            )
+        )
+
+        persisted_transactions = list(result.scalars().all())
+
+    assert persisted_source is not None
+    assert persisted_destination is not None
+
+    assert persisted_source.balance == Decimal("875.0000")
+    assert persisted_destination.balance == Decimal("375.0000")
+
+    assert len(persisted_transactions) == 1
+    assert persisted_transactions[0].id in transaction_ids
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "idempotency_key",
+    [
+        None,
+        "",
+        "invalid/key",
+        "x" * 129,
+    ],
+)
+async def test_create_transaction_requires_a_valid_idempotency_key(
+    idempotency_key: str | None,
+) -> None:
+    """Reject missing or malformed idempotency keys."""
+    user_id, _ = await create_user_with_account()
+
+    headers = {
+        "Authorization": f"Bearer {create_access_token(str(user_id))}",
+    }
+
+    if idempotency_key is not None:
+        headers["Idempotency-Key"] = idempotency_key
+
+    response = client.post(
+        "/transactions",
+        headers=headers,
+        json={
+            "destination_iban": IDEMERAX_IBAN,
+            "amount": "100.00",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_same_idempotency_key_is_isolated_between_users() -> None:
+    """Do not replay another user's transaction when keys are equal."""
+    first_user_id, first_source_account = await create_user_with_account(
+        "1000.0000",
+    )
+
+    second_user_id, second_source_account = await create_user_with_account(
+        "1000.0000",
+    )
+
+    _, destination_account = await create_user_with_account("250.0000")
+
+    idempotency_key = f"user-scope-{uuid4()}"
+
+    payload = {
+        "destination_iban": destination_account.iban,
+        "amount": "100.00",
+        "reference": "User-scoped idempotency",
+    }
+
+    first_response = client.post(
+        "/transactions",
+        headers={
+            "Authorization": f"Bearer {create_access_token(str(first_user_id))}",
+            "Idempotency-Key": idempotency_key,
+        },
+        json=payload,
+    )
+
+    second_response = client.post(
+        "/transactions",
+        headers={
+            "Authorization": f"Bearer {create_access_token(str(second_user_id))}",
+            "Idempotency-Key": idempotency_key,
+        },
+        json=payload,
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+    first_transaction_id = first_response.json()["id"]
+    second_transaction_id = second_response.json()["id"]
+
+    assert first_transaction_id != second_transaction_id
+
+    async with SessionFactory() as session:
+        first_source = await session.get(Account, first_source_account.id)
+        second_source = await session.get(Account, second_source_account.id)
+
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.idempotency_key == idempotency_key,
+            )
+        )
+
+        persisted_transactions = list(result.scalars().all())
+
+    assert first_source is not None
+    assert second_source is not None
+
+    assert first_source.balance == Decimal("900.0000")
+    assert second_source.balance == Decimal("900.0000")
+
+    assert {transaction.id for transaction in persisted_transactions} == {
+        first_transaction_id,
+        second_transaction_id,
+    }
+
+
+@pytest.mark.anyio
+async def test_concurrent_conflicting_payloads_only_process_one_request() -> None:
+    """Conflicting concurrent requests with the same key cannot double-transfer."""
+    source_user_id, source_account = await create_user_with_account("1000.0000")
+    _, destination_account = await create_user_with_account("250.0000")
+    access_token = create_access_token(str(source_user_id))
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Idempotency-Key": f"transaction-conflicting-concurrent-{uuid4()}",
+    }
+    payloads = [
+        {
+            "destination_iban": destination_account.iban,
+            "amount": "125.00",
+            "reference": "intent A",
+        },
+        {
+            "destination_iban": destination_account.iban,
+            "amount": "200.00",
+            "reference": "intent B",
+        },
+    ]
+
+    def send_request(payload: dict[str, str]):
+        return client.post("/transactions", headers=headers, json=payload)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        responses = list(executor.map(send_request, payloads))
+
+    assert sorted(response.status_code for response in responses) == [201, 409]
+    successful_response = next(
+        response for response in responses if response.status_code == 201
+    )
+    successful_amount = Decimal(successful_response.json()["amount"])
+
+    async with SessionFactory() as session:
+        persisted_source = await session.get(Account, source_account.id)
+        persisted_destination = await session.get(Account, destination_account.id)
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.source_account_id == source_account.id,
+                Transaction.idempotency_key == headers["Idempotency-Key"],
+            )
+        )
+        persisted_transactions = list(result.scalars().all())
+
+    assert persisted_source is not None
+    assert persisted_destination is not None
+    assert persisted_source.balance == Decimal("1000.0000") - successful_amount
+    assert persisted_destination.balance == Decimal("250.0000") + successful_amount
+    assert len(persisted_transactions) == 1
+    assert persisted_transactions[0].amount == successful_amount

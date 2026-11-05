@@ -32,7 +32,9 @@ def account_repository() -> AsyncMock:
 @pytest.fixture
 def transaction_repository() -> AsyncMock:
     """Provide a mocked transaction repository."""
-    return AsyncMock()
+    repository = AsyncMock()
+    repository.get_by_idempotency_key.return_value = None
+    return repository
 
 
 @pytest.fixture
@@ -76,6 +78,7 @@ async def test_process_transaction_successfully_transfers_funds(
         destination_iban=VALID_IBAN,
         destination_email=None,
         amount=Decimal("125.50"),
+        idempotency_key="test-idempotency-key",
     )
     assert result is transaction
     assert source_account.balance == Decimal("874.50")
@@ -97,6 +100,13 @@ async def test_process_transaction_successfully_transfers_funds(
         status="COMPLETED",
         reference=None,
         transfer_method="iban",
+        idempotency_key="test-idempotency-key",
+        request_fingerprint=transaction_processing.calculate_request_fingerprint(
+            destination_iban=VALID_IBAN,
+            destination_email=None,
+            amount=Decimal("125.50"),
+            reference=None,
+        ),
     )
 
 
@@ -120,6 +130,7 @@ async def test_process_transaction_saves_reference(
         destination_email=None,
         amount=Decimal("100.00"),
         reference="  Invoice 2026-001  ",
+        idempotency_key="test-idempotency-key",
     )
     transaction_repository.create.assert_awaited_once_with(
         source_account_id=1,
@@ -129,6 +140,13 @@ async def test_process_transaction_saves_reference(
         status="COMPLETED",
         reference="Invoice 2026-001",
         transfer_method="iban",
+        idempotency_key="test-idempotency-key",
+        request_fingerprint=transaction_processing.calculate_request_fingerprint(
+            destination_iban=VALID_IBAN,
+            destination_email=None,
+            amount=Decimal("100.00"),
+            reference="Invoice 2026-001",
+        ),
     )
 
 
@@ -154,6 +172,7 @@ async def test_process_transaction_accepts_missing_or_blank_reference(
         destination_email=None,
         amount=Decimal("100.00"),
         reference=reference,
+        idempotency_key="test-idempotency-key",
     )
     transaction_repository.create.assert_awaited_once_with(
         source_account_id=1,
@@ -163,6 +182,13 @@ async def test_process_transaction_accepts_missing_or_blank_reference(
         status="COMPLETED",
         reference=None,
         transfer_method="iban",
+        idempotency_key="test-idempotency-key",
+        request_fingerprint=transaction_processing.calculate_request_fingerprint(
+            destination_iban=VALID_IBAN,
+            destination_email=None,
+            amount=Decimal("100.00"),
+            reference=None,
+        ),
     )
 
 
@@ -181,6 +207,7 @@ async def test_process_transaction_rejects_reference_over_140_characters(
             destination_email=None,
             amount=Decimal("100.00"),
             reference="R" * 141,
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_user_id.assert_not_awaited()
 
@@ -206,6 +233,7 @@ async def test_process_transaction_accepts_reference_of_140_characters(
         destination_email=None,
         amount=Decimal("100.00"),
         reference=reference,
+        idempotency_key="test-idempotency-key",
     )
     transaction_repository.create.assert_awaited_once_with(
         source_account_id=1,
@@ -215,6 +243,13 @@ async def test_process_transaction_accepts_reference_of_140_characters(
         status="COMPLETED",
         reference=reference,
         transfer_method="iban",
+        idempotency_key="test-idempotency-key",
+        request_fingerprint=transaction_processing.calculate_request_fingerprint(
+            destination_iban=VALID_IBAN,
+            destination_email=None,
+            amount=Decimal("100.00"),
+            reference=reference,
+        ),
     )
 
 
@@ -237,6 +272,7 @@ async def test_process_transaction_normalizes_destination_iban(
         destination_iban="de89 3704 0044 0532 0130 00",
         destination_email=None,
         amount=Decimal("100.00"),
+        idempotency_key="test-idempotency-key",
     )
     account_repository.get_by_iban.assert_awaited_once_with(
         iban=VALID_IBAN,
@@ -258,6 +294,7 @@ async def test_process_transaction_rejects_zero_amount(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("0"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_user_id.assert_not_awaited()
 
@@ -276,6 +313,7 @@ async def test_process_transaction_rejects_negative_amount(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("-10.00"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_user_id.assert_not_awaited()
 
@@ -303,6 +341,7 @@ async def test_process_transaction_rejects_non_finite_amount(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=amount,
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_user_id.assert_not_awaited()
 
@@ -321,6 +360,7 @@ async def test_process_transaction_rejects_more_than_four_decimal_places(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("100.00001"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_user_id.assert_not_awaited()
 
@@ -353,6 +393,7 @@ async def test_process_transaction_successfully_transfers_funds_to_email_recipie
         destination_iban=None,
         destination_email="recipient@example.com",
         amount=Decimal("125.50"),
+        idempotency_key="test-idempotency-key",
     )
 
     assert result is transaction
@@ -370,6 +411,13 @@ async def test_process_transaction_successfully_transfers_funds_to_email_recipie
         status="COMPLETED",
         reference=None,
         transfer_method="email",
+        idempotency_key="test-idempotency-key",
+        request_fingerprint=transaction_processing.calculate_request_fingerprint(
+            destination_iban=None,
+            destination_email="recipient@example.com",
+            amount=Decimal("125.50"),
+            reference=None,
+        ),
     )
 
 
@@ -398,6 +446,7 @@ async def test_process_transaction_normalizes_destination_email(
         destination_iban=None,
         destination_email="  Recipient@Example.COM  ",
         amount=Decimal("100.00"),
+        idempotency_key="test-idempotency-key",
     )
 
     user_repository.get_by_email.assert_awaited_once_with(
@@ -424,6 +473,7 @@ async def test_process_transaction_rejects_missing_email_recipient(
             destination_iban=None,
             destination_email="unknown@example.com",
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
 
     account_repository.lock_for_transfer.assert_not_awaited()
@@ -449,6 +499,7 @@ async def test_process_transaction_rejects_inactive_email_recipient(
             destination_iban=None,
             destination_email="inactive@example.com",
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
 
     account_repository.lock_for_transfer.assert_not_awaited()
@@ -468,6 +519,7 @@ async def test_process_transaction_rejects_both_destinations(
             destination_iban=VALID_IBAN,
             destination_email="recipient@example.com",
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
 
     account_repository.get_by_user_id.assert_not_awaited()
@@ -487,6 +539,7 @@ async def test_process_transaction_rejects_missing_destination(
             destination_iban=None,
             destination_email=None,
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
 
     account_repository.get_by_user_id.assert_not_awaited()
@@ -506,6 +559,7 @@ async def test_process_transaction_rejects_invalid_destination_iban(
             destination_iban="DE00000000000000000000",
             destination_email=None,
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_iban.assert_not_awaited()
     account_repository.lock_for_transfer.assert_not_awaited()
@@ -526,6 +580,7 @@ async def test_process_transaction_rejects_missing_source_account(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.get_by_iban.assert_not_awaited()
 
@@ -547,6 +602,7 @@ async def test_process_transaction_rejects_missing_destination_account(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.lock_for_transfer.assert_not_awaited()
 
@@ -568,6 +624,7 @@ async def test_process_transaction_rejects_same_source_and_destination(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("100.00"),
+            idempotency_key="test-idempotency-key",
         )
     account_repository.lock_for_transfer.assert_not_awaited()
 
@@ -595,6 +652,7 @@ async def test_process_transaction_rejects_insufficient_funds(
             destination_iban=VALID_IBAN,
             destination_email=None,
             amount=Decimal("50.01"),
+            idempotency_key="test-idempotency-key",
         )
     assert source_account.balance == Decimal("50.00")
     assert destination_account.balance == Decimal("250.00")
@@ -619,7 +677,46 @@ async def test_process_transaction_locks_accounts_in_sorted_order(
         destination_iban=VALID_IBAN,
         destination_email=None,
         amount=Decimal("100.00"),
+        idempotency_key="test-idempotency-key",
     )
     account_repository.lock_for_transfer.assert_awaited_once_with(
         account_ids=[3, 10],
     )
+
+
+@pytest.mark.anyio
+async def test_process_transaction_rejects_email_that_normalizes_to_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    account_repository = AsyncMock()
+    transaction_repository = AsyncMock()
+    user_repository = AsyncMock()
+    account_repository.get_by_user_id.return_value = create_account(1, "100.00")
+    transaction_repository.get_by_idempotency_key.return_value = None
+    monkeypatch.setattr(
+        TransactionProcessing,
+        "_normalize_email",
+        staticmethod(lambda _email: None),
+    )
+
+    processor = TransactionProcessing(
+        account_repository,
+        transaction_repository,
+        user_repository,
+    )
+
+    with pytest.raises(
+        TransactionProcessingError,
+        match="Exactly one destination must be provided",
+    ):
+        await processor.execute(
+            user_id=7,
+            destination_iban=None,
+            destination_email="recipient@example.com",
+            amount=Decimal("10.00"),
+            idempotency_key="normalization-edge-key",
+        )
+
+    user_repository.get_by_email.assert_not_awaited()
+    account_repository.lock_for_transfer.assert_not_awaited()
+    transaction_repository.create.assert_not_awaited()

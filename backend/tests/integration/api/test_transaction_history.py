@@ -82,6 +82,8 @@ async def test_transaction_history_returns_incoming_and_outgoing_items() -> None
             status="COMPLETED",
             reference="Outgoing history item",
             transfer_method="iban",
+            idempotency_key=f"history-outgoing-{uuid4()}",
+            request_fingerprint="a" * 64,
         )
         incoming = await repository.create(
             source_account_id=destination_account_id,
@@ -91,6 +93,8 @@ async def test_transaction_history_returns_incoming_and_outgoing_items() -> None
             status="COMPLETED",
             reference="Incoming history item",
             transfer_method="email",
+            idempotency_key=f"history-incoming-{uuid4()}",
+            request_fingerprint="b" * 64,
         )
 
         outgoing_id = outgoing.id
@@ -178,6 +182,8 @@ async def test_transaction_history_applies_pagination_parameters() -> None:
                 amount=Decimal(amount),
                 transaction_type="TRANSFER",
                 status="COMPLETED",
+                idempotency_key=f"history-pagination-{uuid4()}",
+                request_fingerprint="c" * 64,
             )
 
         await session.commit()
