@@ -74,6 +74,7 @@ class AccountRepository:
             .where(Account.user_id == user_id)
             .order_by(Account.created_at.desc(), Account.id.desc())
         )
+
         return list(result.scalars().all())
 
     async def get_by_user_id(self, user_id: int) -> Account | None:
@@ -100,6 +101,7 @@ class AccountRepository:
                 Account.user_id == user_id,
             )
         )
+
         return result.scalar_one_or_none()
 
     async def get_by_iban(self, iban: str) -> Account | None:
@@ -112,12 +114,18 @@ class AccountRepository:
         self,
         account_ids: list[int],
     ) -> list[Account]:
-        """Lock and return accounts for an atomic transfer."""
+        """Lock accounts in a stable order for a transfer."""
+        unique_account_ids = sorted(set(account_ids))
+
+        if not unique_account_ids:
+            return []
+
         result = await self.session.execute(
             select(Account)
-            .where(Account.id.in_(account_ids))
+            .where(Account.id.in_(unique_account_ids))
             .order_by(Account.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
         return list(result.scalars().all())

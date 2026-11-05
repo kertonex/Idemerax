@@ -17,13 +17,24 @@ class TransactionRepositoryPort(Protocol):
         status: str,
         reference: str | None = None,
         transfer_method: str | None = None,
+        *,
+        idempotency_key: str,
+        request_fingerprint: str,
     ) -> Transaction:
-        """Create and return a transaction without committing."""
+        """Create and flush a transaction without committing the session."""
+        ...
+
+    async def get_by_idempotency_key(
+        self,
+        source_account_id: int,
+        idempotency_key: str,
+    ) -> Transaction | None:
+        """Find a transaction by source account and idempotency key."""
         ...
 
 
 class UserRepositoryPort(Protocol):
-    """Define user data access operations required by transaction processing."""
+    """Define user data access required by transaction processing."""
 
     async def get_by_email(self, email: str) -> User | None:
         """Return a user by email address."""
