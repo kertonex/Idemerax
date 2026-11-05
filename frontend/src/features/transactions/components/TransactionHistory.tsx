@@ -12,6 +12,7 @@ type Direction = 'incoming' | 'outgoing';
 
 interface TransactionHistoryProps {
   accessToken: string | null;
+  initialSelectedTransactionId?: number | null;
 }
 
 interface TransactionGroup {
@@ -396,7 +397,10 @@ function exportTransactionReceipt(
   receiptWindow.focus();
 }
 
-function TransactionHistory({ accessToken }: TransactionHistoryProps) {
+function TransactionHistory({
+  accessToken,
+  initialSelectedTransactionId = null,
+}: TransactionHistoryProps) {
   const [items, setItems] = useState<TransactionHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -413,6 +417,7 @@ function TransactionHistory({ accessToken }: TransactionHistoryProps) {
     useState<TransactionHistoryItem | null>(null);
 
   const latestRequestId = useRef(0);
+  const handledInitialSelectionId = useRef<number | null>(null);
 
   const loadHistory = useCallback(async () => {
     const requestId = ++latestRequestId.current;
@@ -443,17 +448,57 @@ function TransactionHistory({ accessToken }: TransactionHistoryProps) {
         return;
       }
 
+      // When navigating from a completed transfer, locate that exact
+      // transaction and move to its page before opening its details.
+      if (
+        initialSelectedTransactionId !== null &&
+        handledInitialSelectionId.current !== initialSelectedTransactionId
+      ) {
+        const targetIndex = allHistoryItems.findIndex(
+          (item) => item.id === initialSelectedTransactionId,
+        );
+
+        if (targetIndex >= 0) {
+          const targetOffset = Math.floor(targetIndex / PAGE_SIZE) * PAGE_SIZE;
+
+          if (targetOffset !== offset) {
+            setOffset(targetOffset);
+            return;
+          }
+        }
+      }
+
       setItems(pageResult.items);
       setTotal(pageResult.total);
       setTransactionNumbers(createTransactionNumbers(allHistoryItems));
 
-      setSelectedTransaction((current) => {
-        if (current === null) {
-          return null;
-        }
+      if (
+        initialSelectedTransactionId !== null &&
+        handledInitialSelectionId.current !== initialSelectedTransactionId
+      ) {
+        const targetTransaction = pageResult.items.find(
+          (item) => item.id === initialSelectedTransactionId,
+        );
 
-        return pageResult.items.find((item) => item.id === current.id) ?? null;
-      });
+        if (targetTransaction) {
+          setSelectedTransaction(targetTransaction);
+          handledInitialSelectionId.current = initialSelectedTransactionId;
+        } else {
+          setSelectedTransaction((current) => {
+            if (current === null) return null;
+            return (
+              pageResult.items.find((item) => item.id === current.id) ?? null
+            );
+          });
+        }
+      } else {
+        setSelectedTransaction((current) => {
+          if (current === null) return null;
+          return (
+            pageResult.items.find((item) => item.id === current.id) ?? null
+          );
+        });
+      }
 
       setError(null);
     } catch (loadError) {
@@ -472,7 +517,7 @@ function TransactionHistory({ accessToken }: TransactionHistoryProps) {
         setIsRefreshing(false);
       }
     }
-  }, [accessToken, offset]);
+  }, [accessToken, offset, initialSelectedTransactionId]);
 
   useEffect(() => {
     let isActive = true;
