@@ -45,8 +45,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except DBAPIError as exc:
             try:
                 await session.rollback()
-            except Exception:
-                # Preserve the original database exception.
+            except Exception:  # nosec B110 - preserve the original database exception.
                 pass
 
             if _get_postgres_sqlstate(exc) in RETRYABLE_POSTGRES_SQLSTATES:
@@ -65,8 +64,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except BaseException:
             try:
                 await session.rollback()
-            except Exception:
-                # Preserve the original exception or cancellation.
+            except Exception:  # nosec B110 - preserve the original exception or cancellation.
                 pass
 
             raise

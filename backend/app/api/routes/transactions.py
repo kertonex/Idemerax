@@ -83,8 +83,7 @@ async def _rollback_safely(session: AsyncSession) -> None:
     """Attempt rollback without hiding the original application error."""
     try:
         await session.rollback()
-    except Exception:
-        # Preserve the original exception.
+    except Exception:  # nosec B110 - preserve the original exception.
         pass
 
 

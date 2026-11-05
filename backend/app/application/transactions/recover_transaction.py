@@ -125,8 +125,12 @@ class RecoverTransaction:
             destination = await self.accounts.get_by_iban(iban=iban)
             method = "iban"
         else:
-            # The exactly-one-destination check above guarantees an email here.
-            assert email is not None
+            # Keep this invariant as a runtime check; assert can be removed
+            # when Python runs with optimization enabled.
+            if email is None:
+                raise TransactionProcessingError(
+                    "Exactly one destination must be provided."
+                )
             recipient = await self.users.get_by_email(email)
             if recipient is None or not recipient.is_active:
                 raise TransactionProcessingError("Destination user not found.")
