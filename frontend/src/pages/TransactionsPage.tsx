@@ -66,17 +66,22 @@ function readPendingAttempt(userId: number): PendingTransactionAttempt | null {
 
     const storedRequest = parsedRecord.request;
     const request =
-      typeof storedRequest === 'object' && storedRequest !== null &&
+      typeof storedRequest === 'object' &&
+      storedRequest !== null &&
       typeof (storedRequest as Record<string, unknown>).amount === 'string' &&
-      ((typeof (storedRequest as Record<string, unknown>).destination_iban === 'string') ||
-        (typeof (storedRequest as Record<string, unknown>).destination_email === 'string'))
+      (typeof (storedRequest as Record<string, unknown>).destination_iban ===
+        'string' ||
+        typeof (storedRequest as Record<string, unknown>).destination_email ===
+          'string')
         ? (storedRequest as TransactionCreateRequest)
         : undefined;
 
     return {
       key: parsedRecord.key,
       signature: parsedRecord.signature,
-      ...(parsedRecord.protocolVersion === 2 ? { protocolVersion: 2 as const } : {}),
+      ...(parsedRecord.protocolVersion === 2
+        ? { protocolVersion: 2 as const }
+        : {}),
       ...(request ? { request } : {}),
     };
   } catch {
@@ -285,8 +290,11 @@ function TransactionsPageContent({
   const [pendingRecovery, setPendingRecovery] =
     useState<PendingTransactionRecovery | null>(null);
   const [hasRecoveryKeyConflict, setHasRecoveryKeyConflict] = useState(false);
-  const [isLoadingRecovery, setIsLoadingRecovery] = useState(Boolean(accessToken));
-  const [pendingAttemptProtocolVersion, setPendingAttemptProtocolVersion] = useState<1 | 2 | null>(null);
+  const [isLoadingRecovery, setIsLoadingRecovery] = useState(
+    Boolean(accessToken),
+  );
+  const [pendingAttemptProtocolVersion, setPendingAttemptProtocolVersion] =
+    useState<1 | 2 | null>(null);
   const [recoveryLookupFailed, setRecoveryLookupFailed] = useState(false);
 
   const pendingAttemptRef = useRef<PendingTransactionAttempt | null>(null);
@@ -391,7 +399,7 @@ function TransactionsPageContent({
               );
             } else {
               setPendingRecovery(null);
-        setHasRecoveryKeyConflict(false);
+              setHasRecoveryKeyConflict(false);
             }
           } catch {
             // A failed recovery lookup must never unlock a new transfer.
@@ -404,7 +412,10 @@ function TransactionsPageContent({
                 token,
                 pendingAttempt.key,
               );
-              if (previousStatus.status === 'COMPLETED' && previousStatus.transaction) {
+              if (
+                previousStatus.status === 'COMPLETED' &&
+                previousStatus.transaction
+              ) {
                 pendingAttemptRef.current = null;
                 setPendingAttemptProtocolVersion(null);
                 clearPendingAttempt(currentUser.id);
@@ -434,7 +445,11 @@ function TransactionsPageContent({
             }
           }
 
-          if (pendingAttempt && pendingAttempt.protocolVersion !== 2 && pendingAttemptRef.current?.signature !== '') {
+          if (
+            pendingAttempt &&
+            pendingAttempt.protocolVersion !== 2 &&
+            pendingAttemptRef.current?.signature !== ''
+          ) {
             setError(AMBIGUOUS_TRANSACTION_MESSAGE);
             setPendingStatusMessage(
               'A previous transfer needs confirmation. Check its status before retrying it.',
@@ -467,7 +482,8 @@ function TransactionsPageContent({
   }, [accessToken]);
 
   async function handleRefreshRecovery(): Promise<void> {
-    if (!accessToken || statusCheckLockRef.current || submissionLockRef.current) return;
+    if (!accessToken || statusCheckLockRef.current || submissionLockRef.current)
+      return;
     statusCheckLockRef.current = true;
     setIsCheckingStatus(true);
     try {
@@ -504,7 +520,9 @@ function TransactionsPageContent({
           setPendingAttemptProtocolVersion(2);
           if (userId !== null) storePendingAttempt(userId, restoredAttempt);
           setIsRetryingUncertain(true);
-          setPendingStatusMessage('The original transfer details have been restored from the server.');
+          setPendingStatusMessage(
+            'The original transfer details have been restored from the server.',
+          );
         }
       } else if (pendingAttemptRef.current?.key) {
         setPendingRecovery(null);
@@ -516,20 +534,24 @@ function TransactionsPageContent({
         );
         if (status.status === 'COMPLETED' && status.transaction) {
           pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+          setPendingAttemptProtocolVersion(null);
           if (userId !== null) clearPendingAttempt(userId);
           setIsRetryingUncertain(false);
           setTransaction(status.transaction);
           setPendingStatusMessage(null);
         } else if (status.status === 'FAILED') {
           pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+          setPendingAttemptProtocolVersion(null);
           if (userId !== null) clearPendingAttempt(userId);
           setIsRetryingUncertain(false);
-          setError(`The previous transfer failed (${status.failure_code ?? 'unknown reason'}). You can start a new transfer.`);
+          setError(
+            `The previous transfer failed (${status.failure_code ?? 'unknown reason'}). You can start a new transfer.`,
+          );
         } else {
           setIsRetryingUncertain(true);
-          setPendingStatusMessage('The previous transfer is still unresolved. Keep it locked until its status is confirmed.');
+          setPendingStatusMessage(
+            'The previous transfer is still unresolved. Keep it locked until its status is confirmed.',
+          );
         }
       } else {
         setPendingRecovery(null);
@@ -617,18 +639,20 @@ function TransactionsPageContent({
       if (result.status === 'PROCESSING') {
         // PROCESSING is a server-owned operation. Resume it directly with the
         // same key; do not depend on a separate recovery-list lookup succeeding.
-        setPendingStatusMessage('The transfer is still processing. Resuming the original operation…');
+        setPendingStatusMessage(
+          'The transfer is still processing. Resuming the original operation…',
+        );
         submissionLockRef.current = true;
         setIsSubmitting(true);
         try {
           const resumed = await resumeTransaction(accessToken, key);
           if (resumed.status === 'COMPLETED' && resumed.transaction) {
             pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+            setPendingAttemptProtocolVersion(null);
             pendingRequestRef.current = null;
             if (userId !== null) clearPendingAttempt(userId);
             setPendingRecovery(null);
-        setHasRecoveryKeyConflict(false);
+            setHasRecoveryKeyConflict(false);
             setIsRetryingUncertain(false);
             setError(null);
             setPendingStatusMessage(null);
@@ -637,25 +661,33 @@ function TransactionsPageContent({
               setAccount(await getMyAccount(accessToken));
               setAccountError(null);
             } catch {
-              setAccountError('Transfer completed, but the balance could not be refreshed.');
+              setAccountError(
+                'Transfer completed, but the balance could not be refreshed.',
+              );
             }
             return;
           }
           if (resumed.status === 'FAILED') {
             pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+            setPendingAttemptProtocolVersion(null);
             pendingRequestRef.current = null;
             if (userId !== null) clearPendingAttempt(userId);
             setPendingRecovery(null);
-        setHasRecoveryKeyConflict(false);
+            setHasRecoveryKeyConflict(false);
             setIsRetryingUncertain(false);
             setPendingStatusMessage(null);
-            setError(`The original transfer failed (${resumed.failure_code ?? 'unknown reason'}). You can start a new transfer.`);
+            setError(
+              `The original transfer failed (${resumed.failure_code ?? 'unknown reason'}). You can start a new transfer.`,
+            );
             return;
           }
-          setPendingStatusMessage('The original transfer is still processing. Its key and recovery record remain saved.');
+          setPendingStatusMessage(
+            'The original transfer is still processing. Its key and recovery record remain saved.',
+          );
         } catch {
-          setPendingStatusMessage('The original transfer could not be resumed yet. Its key remains saved; check again when the connection is stable.');
+          setPendingStatusMessage(
+            'The original transfer could not be resumed yet. Its key remains saved; check again when the connection is stable.',
+          );
         } finally {
           submissionLockRef.current = false;
           setIsSubmitting(false);
@@ -670,30 +702,41 @@ function TransactionsPageContent({
           if (pending.operation.idempotency_key === attempt.key) {
             setHasRecoveryKeyConflict(false);
             setPendingRecovery(pending.operation);
-            setPendingStatusMessage('The original transfer is available for server-side recovery.');
+            setPendingStatusMessage(
+              'The original transfer is available for server-side recovery.',
+            );
           } else {
             setHasRecoveryKeyConflict(true);
-            setPendingStatusMessage('A different transfer is pending on the server. The original attempt remains locked; resolve the server-side transfer first.');
+            setPendingStatusMessage(
+              'A different transfer is pending on the server. The original attempt remains locked; resolve the server-side transfer first.',
+            );
           }
           setIsRetryingUncertain(true);
           return;
         }
 
-        const originalRequest = pendingRequestRef.current ?? attempt.request ?? null;
+        const originalRequest =
+          pendingRequestRef.current ?? attempt.request ?? null;
         if (originalRequest) {
           // Replay only the exact request body and key from the ambiguous
           // attempt. Lock synchronously so the form cannot submit concurrently.
           submissionLockRef.current = true;
           setIsSubmitting(true);
-          setPendingStatusMessage('No result is recorded yet. Retrying the exact same transfer with its original key…');
+          setPendingStatusMessage(
+            'No result is recorded yet. Retrying the exact same transfer with its original key…',
+          );
           try {
-            const replayed = await createTransaction(accessToken, originalRequest, attempt.key);
+            const replayed = await createTransaction(
+              accessToken,
+              originalRequest,
+              attempt.key,
+            );
             pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+            setPendingAttemptProtocolVersion(null);
             pendingRequestRef.current = null;
             if (userId !== null) clearPendingAttempt(userId);
             setPendingRecovery(null);
-        setHasRecoveryKeyConflict(false);
+            setHasRecoveryKeyConflict(false);
             setIsRetryingUncertain(false);
             setError(null);
             setPendingStatusMessage(null);
@@ -702,14 +745,19 @@ function TransactionsPageContent({
               setAccount(await getMyAccount(accessToken));
               setAccountError(null);
             } catch {
-              setAccountError('Transfer completed, but the balance could not be refreshed.');
+              setAccountError(
+                'Transfer completed, but the balance could not be refreshed.',
+              );
             }
           } catch (replayError) {
             setIsRetryingUncertain(true);
             setError(AMBIGUOUS_TRANSACTION_MESSAGE);
-            setPendingStatusMessage(replayError instanceof ApiClientError && !replayError.outcomeUnknown
-              ? 'The retry was rejected. The original key remains saved; check status before trying again.'
-              : 'The retry outcome is still unknown. The same key and request remain saved; check status again.');
+            setPendingStatusMessage(
+              replayError instanceof ApiClientError &&
+                !replayError.outcomeUnknown
+                ? 'The retry was rejected. The original key remains saved; check status before trying again.'
+                : 'The retry outcome is still unknown. The same key and request remain saved; check status again.',
+            );
           } finally {
             submissionLockRef.current = false;
             setIsSubmitting(false);
@@ -721,7 +769,9 @@ function TransactionsPageContent({
         // Keep the attempt and let the user re-enter the exact same details;
         // handleTransaction validates the signature and reuses this key.
         setIsRetryingUncertain(true);
-        setPendingStatusMessage('This saved attempt predates request recovery in this version. Re-enter the exact same recipient, amount and reference once; the original key will be reused.');
+        setPendingStatusMessage(
+          'This saved attempt predates request recovery in this version. Re-enter the exact same recipient, amount and reference once; the original key will be reused.',
+        );
         return;
       }
 
@@ -749,9 +799,14 @@ function TransactionsPageContent({
   async function handleResumeOriginalTransfer(): Promise<void> {
     if (!accessToken || !pendingRecovery || isSubmitting) return;
     const localAttempt = pendingAttemptRef.current;
-    if (localAttempt?.key && localAttempt.key !== pendingRecovery.idempotency_key) {
+    if (
+      localAttempt?.key &&
+      localAttempt.key !== pendingRecovery.idempotency_key
+    ) {
       setHasRecoveryKeyConflict(true);
-      setError('The server recovery key conflicts with the saved transfer attempt. Do not resume either transfer until the conflict is reconciled.');
+      setError(
+        'The server recovery key conflicts with the saved transfer attempt. Do not resume either transfer until the conflict is reconciled.',
+      );
       setIsRetryingUncertain(true);
       return;
     }
@@ -777,7 +832,9 @@ function TransactionsPageContent({
           setAccount(await getMyAccount(accessToken));
           setAccountError(null);
         } catch {
-          setAccountError('Transfer completed, but the balance could not be refreshed.');
+          setAccountError(
+            'Transfer completed, but the balance could not be refreshed.',
+          );
         }
         return;
       }
@@ -913,11 +970,11 @@ function TransactionsPageContent({
       // refreshing unrelated UI data so a refresh error cannot be mistaken
       // for an uncertain transaction outcome.
       pendingAttemptRef.current = null;
-        setPendingAttemptProtocolVersion(null);
+      setPendingAttemptProtocolVersion(null);
       pendingRequestRef.current = null;
       clearPendingAttempt(userId);
       setPendingRecovery(null);
-        setHasRecoveryKeyConflict(false);
+      setHasRecoveryKeyConflict(false);
 
       setIsRetryingUncertain(false);
       setTransaction(createdTransaction);
@@ -928,19 +985,27 @@ function TransactionsPageContent({
           submissionError.status === 409 ||
           submissionError.status === 425);
 
-      if (submissionError instanceof ApiClientError && submissionError.status === 409) {
+      if (
+        submissionError instanceof ApiClientError &&
+        submissionError.status === 409
+      ) {
         try {
           const pending = await getPendingTransactionRecovery(accessToken);
           if (pending.operation) {
             const localAttempt = pendingAttemptRef.current;
-            if (localAttempt?.key && localAttempt.key !== pending.operation.idempotency_key) {
+            if (
+              localAttempt?.key &&
+              localAttempt.key !== pending.operation.idempotency_key
+            ) {
               setHasRecoveryKeyConflict(true);
               // A 409 may describe a different server-owned operation. Preserve
               // the exact client attempt and its payload; do not expose the
               // conflicting operation as resumable recovery UI.
               setPendingRecovery(null);
               setIsRetryingUncertain(true);
-              setError('A different transfer is awaiting confirmation on the server. The original attempt was preserved; resolve the key conflict before retrying.');
+              setError(
+                'A different transfer is awaiting confirmation on the server. The original attempt was preserved; resolve the key conflict before retrying.',
+              );
               setPendingStatusMessage(
                 'The server recovery key differs from this request. No transfer was resumed and the saved idempotency key was not replaced.',
               );
@@ -951,7 +1016,9 @@ function TransactionsPageContent({
                 key: pending.operation.idempotency_key,
                 signature: localAttempt?.signature ?? '',
                 protocolVersion: 2,
-                ...(localAttempt?.request ? { request: localAttempt.request } : {}),
+                ...(localAttempt?.request
+                  ? { request: localAttempt.request }
+                  : {}),
               };
               pendingAttemptRef.current = serverAttempt;
               setPendingAttemptProtocolVersion(2);
@@ -973,7 +1040,7 @@ function TransactionsPageContent({
         setIsRetryingUncertain(true);
         setError(AMBIGUOUS_TRANSACTION_MESSAGE);
         setPendingStatusMessage(
-          (connectionLostRef.current || !navigator.onLine)
+          connectionLostRef.current || !navigator.onLine
             ? 'Transfer status unknown – connection lost. The original attempt is saved. We will check it automatically when the connection returns; do not start another transfer.'
             : 'The transfer result is not confirmed yet. The original attempt is saved. We will check it automatically when the request times out or the connection returns; do not start another transfer.',
         );
@@ -1191,7 +1258,11 @@ function TransactionsPageContent({
   // backoff (3s, 5s, 10s, 20s, then 30s) instead of fixed-rate polling. The
   // online event still triggers an immediate check, and requests are serialized.
   useEffect(() => {
-    if (!accessToken || isLoadingRecovery || (!isRetryingUncertain && !pendingRecovery)) {
+    if (
+      !accessToken ||
+      isLoadingRecovery ||
+      (!isRetryingUncertain && !pendingRecovery)
+    ) {
       return;
     }
 
@@ -1215,7 +1286,11 @@ function TransactionsPageContent({
           setPendingStatusMessage(
             'Offline. The previous transfer remains saved; automatic status checking will resume when the connection returns.',
           );
-        } else if (!submissionLockRef.current && !statusCheckLockRef.current && !isSubmitting) {
+        } else if (
+          !submissionLockRef.current &&
+          !statusCheckLockRef.current &&
+          !isSubmitting
+        ) {
           void reconnectCheckRef.current?.();
         }
         scheduleNext();
@@ -1227,7 +1302,13 @@ function TransactionsPageContent({
       cancelled = true;
       if (timerId !== undefined) window.clearTimeout(timerId);
     };
-  }, [accessToken, isLoadingRecovery, isRetryingUncertain, pendingRecovery, isSubmitting]);
+  }, [
+    accessToken,
+    isLoadingRecovery,
+    isRetryingUncertain,
+    pendingRecovery,
+    isSubmitting,
+  ]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -1235,7 +1316,9 @@ function TransactionsPageContent({
     const handleConnectionRestored = (): void => {
       connectionLostRef.current = false;
       if (pendingAttemptRef.current?.key || pendingRecovery?.idempotency_key) {
-        setPendingStatusMessage('Connection restored. Checking the previous transfer…');
+        setPendingStatusMessage(
+          'Connection restored. Checking the previous transfer…',
+        );
       }
       void reconnectCheckRef.current?.();
     };
@@ -1498,34 +1581,52 @@ function TransactionsPageContent({
                     className="rounded-2xl border border-slate-700 bg-slate-950/70 p-5 sm:p-6"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold text-white">Previous transfer</h2>
+                      <h2 className="text-base font-semibold text-white">
+                        Previous transfer
+                      </h2>
                       <span className="rounded-full bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-300">
                         Needs confirmation
                       </span>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">Original request restored from the server</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Original request restored from the server
+                    </p>
                     <dl className="mt-5 space-y-4">
                       <div>
                         <dt className="text-sm font-medium text-slate-300">
-                          {pendingRecovery.recipient_method === 'iban' ? 'Recipient IBAN' : 'Recipient email'}
+                          {pendingRecovery.recipient_method === 'iban'
+                            ? 'Recipient IBAN'
+                            : 'Recipient email'}
                         </dt>
                         <dd className="mt-2 break-all font-mono text-sm text-white">
                           {pendingRecovery.recipient_iban
                             ? maskIban(pendingRecovery.recipient_iban)
-                            : pendingRecovery.recipient_email ?? 'Recipient unavailable'}
+                            : (pendingRecovery.recipient_email ??
+                              'Recipient unavailable')}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-slate-300">Amount</dt>
-                        <dd className="mt-2 text-2xl font-semibold text-white">{formatAmount(pendingRecovery.amount)}</dd>
+                        <dt className="text-sm font-medium text-slate-300">
+                          Amount
+                        </dt>
+                        <dd className="mt-2 text-2xl font-semibold text-white">
+                          {formatAmount(pendingRecovery.amount)}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-slate-300">Reference</dt>
-                        <dd className="mt-2 text-sm text-white">{pendingRecovery.reference || '—'}</dd>
+                        <dt className="text-sm font-medium text-slate-300">
+                          Reference
+                        </dt>
+                        <dd className="mt-2 text-sm text-white">
+                          {pendingRecovery.reference || '—'}
+                        </dd>
                       </div>
                     </dl>
                     {pendingStatusMessage && (
-                      <p role="status" className="mt-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-sm leading-6 text-slate-300">
+                      <p
+                        role="status"
+                        className="mt-4 rounded-lg border border-slate-700 bg-slate-900/60 p-3 text-sm leading-6 text-slate-300"
+                      >
                         {pendingStatusMessage}
                       </p>
                     )}
@@ -1533,9 +1634,7 @@ function TransactionsPageContent({
                       type="button"
                       onClick={() => void handleResumeOriginalTransfer()}
                       disabled={
-                        isSubmitting ||
-                        !accessToken ||
-                        hasRecoveryKeyConflict
+                        isSubmitting || !accessToken || hasRecoveryKeyConflict
                       }
                       className="mt-5 flex min-h-11 w-full items-center justify-center rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -1548,31 +1647,84 @@ function TransactionsPageContent({
                     <button
                       type="button"
                       onClick={() => void handleCheckTransactionStatus()}
-                      disabled={isCheckingStatus || isSubmitting || !accessToken}
+                      disabled={
+                        isCheckingStatus || isSubmitting || !accessToken
+                      }
                       className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isCheckingStatus ? 'Checking status…' : 'Check transfer status'}
+                      {isCheckingStatus
+                        ? 'Checking status…'
+                        : 'Check transfer status'}
                     </button>
                     <div className="mt-5 border-t border-slate-800 pt-5">
-                      <h3 className="text-sm font-semibold text-white">New transfer</h3>
-                      <p className="mt-2 text-sm text-slate-400">Available after the previous transfer has been safely resolved.</p>
-                      <button type="button" disabled className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-500">
+                      <h3 className="text-sm font-semibold text-white">
+                        New transfer
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Available after the previous transfer has been safely
+                        resolved.
+                      </p>
+                      <button
+                        type="button"
+                        disabled
+                        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-500"
+                      >
                         Start new transfer
                       </button>
                     </div>
                   </section>
                 ) : recoveryLookupFailed ? (
                   <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-5">
-                    <h2 className="text-base font-semibold text-amber-100">Transfer status cannot be verified</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">Idemerax could not check the server for an unfinished transfer. A new transfer is disabled until this check succeeds. No transfer is assumed to have failed.</p>
-                    <button type="button" onClick={() => void (pendingAttemptRef.current?.key ? handleCheckTransactionStatus() : handleRefreshRecovery())} disabled={isCheckingStatus || isSubmitting} className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50">{isCheckingStatus ? 'Checking…' : 'Check again'}</button>
+                    <h2 className="text-base font-semibold text-amber-100">
+                      Transfer status cannot be verified
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Idemerax could not check the server for an unfinished
+                      transfer. A new transfer is disabled until this check
+                      succeeds. No transfer is assumed to have failed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void (pendingAttemptRef.current?.key
+                          ? handleCheckTransactionStatus()
+                          : handleRefreshRecovery())
+                      }
+                      disabled={isCheckingStatus || isSubmitting}
+                      className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
+                    >
+                      {isCheckingStatus ? 'Checking…' : 'Check again'}
+                    </button>
                   </section>
-                ) : isRetryingUncertain && !pendingRecovery && pendingAttemptProtocolVersion !== 2 ? (
+                ) : isRetryingUncertain &&
+                  !pendingRecovery &&
+                  pendingAttemptProtocolVersion !== 2 ? (
                   <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-5">
-                    <h2 className="text-base font-semibold text-amber-100">Previous transfer needs reconciliation</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">This attempt was created before server-side recovery was available. Its original recipient and amount were not saved on the server, so they cannot be restored safely. Check transaction history and account activity before starting another transfer.</p>
-                    <button type="button" onClick={() => void handleCheckTransactionStatus()} disabled={isCheckingStatus || !accessToken} className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50">{isCheckingStatus ? 'Checking…' : 'Check transfer status'}</button>
-                    <button type="button" disabled className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-500">Start new transfer</button>
+                    <h2 className="text-base font-semibold text-amber-100">
+                      Previous transfer needs reconciliation
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      This attempt was created before server-side recovery was
+                      available. Its original recipient and amount were not
+                      saved on the server, so they cannot be restored safely.
+                      Check transaction history and account activity before
+                      starting another transfer.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleCheckTransactionStatus()}
+                      disabled={isCheckingStatus || !accessToken}
+                      className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
+                    >
+                      {isCheckingStatus ? 'Checking…' : 'Check transfer status'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-500"
+                    >
+                      Start new transfer
+                    </button>
                   </section>
                 ) : isLoadingRecovery ? (
                   <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-sm text-slate-400">
@@ -1580,23 +1732,51 @@ function TransactionsPageContent({
                   </div>
                 ) : (
                   <>
-                  {isRetryingUncertain && !pendingRecovery && pendingAttemptProtocolVersion === 2 && (
-                    <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-5" aria-label="Pending transfer status">
-                      <h2 className="text-base font-semibold text-amber-100">Transfer status being reconciled</h2>
-                      <p role="status" className="mt-2 text-sm leading-6 text-slate-300">{pendingStatusMessage || AMBIGUOUS_TRANSACTION_MESSAGE}</p>
-                      <button type="button" onClick={() => void handleCheckTransactionStatus()} disabled={isCheckingStatus || isSubmitting || !accessToken} className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50">{isCheckingStatus ? 'Checking…' : 'Check transfer status'}</button>
-                    </section>
-                  )}
-                  <TransactionForm
-                    key="new-transfer"
-                    accessToken={accessToken}
-                    isSubmitting={isSubmitting}
-                    error={error}
-                    isRetryingUncertain={isRetryingUncertain}
-                    onSubmit={handleTransaction}
-                    availableBalance={accessToken ? (account?.balance ?? null) : null}
-                    isLoadingBalance={Boolean(accessToken) && isLoadingAccount}
-                  />
+                    {isRetryingUncertain &&
+                      !pendingRecovery &&
+                      pendingAttemptProtocolVersion === 2 && (
+                        <section
+                          className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-5"
+                          aria-label="Pending transfer status"
+                        >
+                          <h2 className="text-base font-semibold text-amber-100">
+                            Transfer status being reconciled
+                          </h2>
+                          <p
+                            role="status"
+                            className="mt-2 text-sm leading-6 text-slate-300"
+                          >
+                            {pendingStatusMessage ||
+                              AMBIGUOUS_TRANSACTION_MESSAGE}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void handleCheckTransactionStatus()}
+                            disabled={
+                              isCheckingStatus || isSubmitting || !accessToken
+                            }
+                            className="mt-4 min-h-10 rounded-full border border-amber-500/30 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
+                          >
+                            {isCheckingStatus
+                              ? 'Checking…'
+                              : 'Check transfer status'}
+                          </button>
+                        </section>
+                      )}
+                    <TransactionForm
+                      key="new-transfer"
+                      accessToken={accessToken}
+                      isSubmitting={isSubmitting}
+                      error={error}
+                      isRetryingUncertain={isRetryingUncertain}
+                      onSubmit={handleTransaction}
+                      availableBalance={
+                        accessToken ? (account?.balance ?? null) : null
+                      }
+                      isLoadingBalance={
+                        Boolean(accessToken) && isLoadingAccount
+                      }
+                    />
                   </>
                 )}
 

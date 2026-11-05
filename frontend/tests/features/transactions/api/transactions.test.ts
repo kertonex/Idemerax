@@ -610,9 +610,7 @@ describe('getPendingTransactionRecovery', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe(
-      'http://localhost:8000/transactions/idempotency/pending',
-    );
+    expect(url).toBe('http://localhost:8000/transactions/idempotency/pending');
     expect(options).toMatchObject({ credentials: 'include' });
     expect(new Headers(options?.headers).get('Authorization')).toBe(
       'Bearer test-access-token',

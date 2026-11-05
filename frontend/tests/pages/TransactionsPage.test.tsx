@@ -2806,60 +2806,98 @@ describe('TransactionsPage', () => {
     const user = userEvent.setup();
     mockGetMyAccount
       .mockResolvedValueOnce({
-        id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-        bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '1000.0000',
       })
       .mockRejectedValueOnce(new Error('Balance endpoint unavailable'));
     mockGetPendingTransactionRecovery.mockResolvedValue({
       operation: {
         idempotency_key: 'resume-completed-refresh-error',
-        recipient_method: 'iban', recipient_iban: VALID_IBAN,
-        recipient_email: null, amount: '42.0000', reference: null,
+        recipient_method: 'iban',
+        recipient_iban: VALID_IBAN,
+        recipient_email: null,
+        amount: '42.0000',
+        reference: null,
       },
     });
     mockResumeTransaction.mockResolvedValue({
       status: 'COMPLETED',
       transaction: {
-        id: 91, created_at: '2026-11-05T10:00:00Z', source_account_id: 1,
-        destination_account_id: 2, amount: '42.0000', transaction_type: 'TRANSFER',
-        status: 'COMPLETED', reference: null,
+        id: 91,
+        created_at: '2026-11-05T10:00:00Z',
+        source_account_id: 1,
+        destination_account_id: 2,
+        amount: '42.0000',
+        transaction_type: 'TRANSFER',
+        status: 'COMPLETED',
+        reference: null,
       },
     });
 
     render(<TransactionsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Retry original transfer' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Retry original transfer' }),
+    );
 
     expect(await screen.findByText('Transfer completed')).toBeInTheDocument();
-    expect(await screen.findByText(/balance could not be refreshed/i)).toBeInTheDocument();
-    expect(mockResumeTransaction).toHaveBeenCalledWith('test-access-token', 'resume-completed-refresh-error');
-    expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toBeNull();
+    expect(
+      await screen.findByText(/balance could not be refreshed/i),
+    ).toBeInTheDocument();
+    expect(mockResumeTransaction).toHaveBeenCalledWith(
+      'test-access-token',
+      'resume-completed-refresh-error',
+    );
+    expect(
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+    ).toBeNull();
   });
 
   it('updates server recovery state after resume fails when the follow-up lookup succeeds', async () => {
     const user = userEvent.setup();
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
     mockGetPendingTransactionRecovery
       .mockResolvedValueOnce({
         operation: {
           idempotency_key: 'resume-error-refreshes-recovery',
-          recipient_method: 'email', recipient_iban: null,
-          recipient_email: 'recipient@example.com', amount: '37.0000', reference: null,
+          recipient_method: 'email',
+          recipient_iban: null,
+          recipient_email: 'recipient@example.com',
+          amount: '37.0000',
+          reference: null,
         },
       })
       .mockResolvedValueOnce({ operation: null });
-    mockResumeTransaction.mockRejectedValueOnce(new Error('Temporary resume failure'));
+    mockResumeTransaction.mockRejectedValueOnce(
+      new Error('Temporary resume failure'),
+    );
 
     render(<TransactionsPage />);
-    await user.click(await screen.findByRole('button', { name: 'Retry original transfer' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Retry original transfer' }),
+    );
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Temporary resume failure');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Temporary resume failure',
+    );
     await waitFor(() => {
       expect(mockGetPendingTransactionRecovery).toHaveBeenCalledTimes(2);
     });
-    expect(screen.queryByRole('region', { name: 'Previous transfer recovery' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Previous transfer recovery' }),
+    ).not.toBeInTheDocument();
     expect(mockResumeTransaction).toHaveBeenCalledOnce();
     expect(mockCreateTransaction).not.toHaveBeenCalled();
   });
@@ -2867,17 +2905,27 @@ describe('TransactionsPage', () => {
   it('preserves the original idempotency key when a 409 reveals a different server operation', async () => {
     const user = userEvent.setup();
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
-    mockCreateTransaction.mockRejectedValueOnce(new ApiClientError('Conflict', 409, false));
+    mockCreateTransaction.mockRejectedValueOnce(
+      new ApiClientError('Conflict', 409, false),
+    );
     mockGetPendingTransactionRecovery
       .mockResolvedValueOnce({ operation: null })
       .mockResolvedValueOnce({
         operation: {
           idempotency_key: 'server-owned-different-key',
-          recipient_method: 'iban', recipient_iban: VALID_IBAN,
-          recipient_email: null, amount: '60.0000', reference: null,
+          recipient_method: 'iban',
+          recipient_iban: VALID_IBAN,
+          recipient_email: null,
+          amount: '60.0000',
+          reference: null,
         },
       });
 
@@ -2890,7 +2938,10 @@ describe('TransactionsPage', () => {
     // The invariant is that the client-owned key is never replaced by a different
     // server operation, regardless of which status message is currently visible.
     await waitFor(() => {
-      const saved = JSON.parse(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ?? 'null');
+      const saved = JSON.parse(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ??
+          'null',
+      );
       expect(saved).not.toBeNull();
       expect(saved.key).toBe(mockCreateTransaction.mock.calls[0][2]);
       expect(saved.key).not.toBe('server-owned-different-key');
@@ -2898,19 +2949,28 @@ describe('TransactionsPage', () => {
     expect(mockCreateTransaction).toHaveBeenCalledOnce();
   });
 
-
   it('keeps a confirmed transaction successful when the post-transfer balance refresh fails', async () => {
     const user = userEvent.setup();
     mockGetMyAccount
       .mockResolvedValueOnce({
-        id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-        bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+        id: 1,
+        user_id: 1,
+        account_number: '1234567890',
+        iban: VALID_IBAN,
+        bic: 'IDEMDEFFXXX',
+        created_at: '2026-09-30T10:00:00Z',
+        balance: '1000.0000',
       })
       .mockRejectedValueOnce(new Error('Balance refresh unavailable'));
     mockCreateTransaction.mockResolvedValueOnce({
-      id: 92, created_at: '2026-11-05T10:00:00Z', source_account_id: 1,
-      destination_account_id: 2, amount: '25.0000', transaction_type: 'TRANSFER',
-      status: 'COMPLETED', reference: null,
+      id: 92,
+      created_at: '2026-11-05T10:00:00Z',
+      source_account_id: 1,
+      destination_account_id: 2,
+      amount: '25.0000',
+      transaction_type: 'TRANSFER',
+      status: 'COMPLETED',
+      reference: null,
     });
 
     render(<TransactionsPage />);
@@ -2919,32 +2979,52 @@ describe('TransactionsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
     expect(await screen.findByText('Transfer completed')).toBeInTheDocument();
-    expect(await screen.findByText(/balance could not be refreshed: Balance refresh unavailable/i)).toBeInTheDocument();
-    expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toBeNull();
+    expect(
+      await screen.findByText(
+        /balance could not be refreshed: Balance refresh unavailable/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+    ).toBeNull();
     expect(mockCreateTransaction).toHaveBeenCalledOnce();
   });
 
   it('reports when secure random generation is unavailable without submitting a transfer', async () => {
     const user = userEvent.setup();
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
-    vi.stubGlobal('crypto', { randomUUID: undefined, getRandomValues: undefined });
+    vi.stubGlobal('crypto', {
+      randomUUID: undefined,
+      getRandomValues: undefined,
+    });
 
     try {
       render(<TransactionsPage />);
-      await user.type(await screen.findByLabelText('Recipient IBAN'), VALID_IBAN);
+      await user.type(
+        await screen.findByLabelText('Recipient IBAN'),
+        VALID_IBAN,
+      );
       await user.type(screen.getByLabelText('Amount'), '25');
       await user.click(screen.getByRole('button', { name: 'Send money' }));
-      expect(await screen.findByRole('alert')).toHaveTextContent('Secure random number generation is unavailable');
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Secure random number generation is unavailable',
+      );
       expect(mockCreateTransaction).not.toHaveBeenCalled();
-      expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toBeNull();
+      expect(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+      ).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }
   });
-
 
   it('keeps a restored v2 attempt locked when NOT_FOUND has no persisted request to replay', async () => {
     const key = 'v2-attempt-without-request';
@@ -2952,11 +3032,18 @@ describe('TransactionsPage', () => {
       'idemerax:pending-transaction:v1:1',
       JSON.stringify({ key, signature: 'saved-signature', protocolVersion: 2 }),
     );
-    mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'NOT_FOUND' });
+    mockGetTransactionIdempotencyStatus.mockResolvedValue({
+      status: 'NOT_FOUND',
+    });
     mockGetPendingTransactionRecovery.mockResolvedValue({ operation: null });
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
 
     render(<TransactionsPage />);
@@ -2964,9 +3051,13 @@ describe('TransactionsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Re-enter the exact same recipient, amount and reference',
     );
-    expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toContain(key);
+    expect(
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+    ).toContain(key);
     expect(mockCreateTransaction).not.toHaveBeenCalled();
-    expect(mockGetPendingTransactionRecovery).toHaveBeenCalledWith('test-access-token');
+    expect(mockGetPendingTransactionRecovery).toHaveBeenCalledWith(
+      'test-access-token',
+    );
   });
 
   it('preserves the pending attempt when recovery lookup fails after NOT_FOUND', async () => {
@@ -2974,23 +3065,42 @@ describe('TransactionsPage', () => {
     window.sessionStorage.setItem(
       'idemerax:pending-transaction:v1:1',
       JSON.stringify({
-        key, signature: 'saved-signature', protocolVersion: 2,
-        request: { destination_iban: VALID_IBAN, amount: '25.00', reference: null },
+        key,
+        signature: 'saved-signature',
+        protocolVersion: 2,
+        request: {
+          destination_iban: VALID_IBAN,
+          amount: '25.00',
+          reference: null,
+        },
       }),
     );
-    mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'NOT_FOUND' });
-    mockGetPendingTransactionRecovery.mockRejectedValue(new Error('Recovery endpoint unavailable'));
+    mockGetTransactionIdempotencyStatus.mockResolvedValue({
+      status: 'NOT_FOUND',
+    });
+    mockGetPendingTransactionRecovery.mockRejectedValue(
+      new Error('Recovery endpoint unavailable'),
+    );
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
 
     render(<TransactionsPage />);
 
     expect(
-      await screen.findByText(/Idemerax could not check the server for an unfinished transfer/i),
+      await screen.findByText(
+        /Idemerax could not check the server for an unfinished transfer/i,
+      ),
     ).toBeInTheDocument();
-    expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toContain(key);
+    expect(
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+    ).toContain(key);
     expect(mockCreateTransaction).not.toHaveBeenCalled();
   });
 
@@ -2999,20 +3109,37 @@ describe('TransactionsPage', () => {
     window.sessionStorage.setItem(
       'idemerax:pending-transaction:v1:1',
       JSON.stringify({
-        key, signature: 'saved-signature', protocolVersion: 2,
-        request: { destination_iban: VALID_IBAN, amount: '25.00', reference: null },
+        key,
+        signature: 'saved-signature',
+        protocolVersion: 2,
+        request: {
+          destination_iban: VALID_IBAN,
+          amount: '25.00',
+          reference: null,
+        },
       }),
     );
-    mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'NOT_FOUND' });
+    mockGetTransactionIdempotencyStatus.mockResolvedValue({
+      status: 'NOT_FOUND',
+    });
     mockGetPendingTransactionRecovery.mockResolvedValue({
       operation: {
-        idempotency_key: 'different-server-key', recipient_method: 'iban',
-        recipient_iban: VALID_IBAN, recipient_email: null, amount: '25.0000', reference: null,
+        idempotency_key: 'different-server-key',
+        recipient_method: 'iban',
+        recipient_iban: VALID_IBAN,
+        recipient_email: null,
+        amount: '25.0000',
+        reference: null,
       },
     });
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
 
     render(<TransactionsPage />);
@@ -3021,14 +3148,18 @@ describe('TransactionsPage', () => {
     // Verify the safety invariant directly: the local key is retained and no
     // automatic replay is issued when the server reports another operation.
     await waitFor(() => {
-      expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toContain(key);
+      expect(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+      ).toContain(key);
     });
-    const saved = JSON.parse(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ?? 'null');
+    const saved = JSON.parse(
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ??
+        'null',
+    );
     expect(saved.key).toBe(key);
     expect(saved.key).not.toBe('different-server-key');
     expect(mockCreateTransaction).not.toHaveBeenCalled();
   });
-
 
   it('keeps a 409 transfer unresolved when the recovery endpoint reports no operation', async () => {
     const user = userEvent.setup();
@@ -3057,7 +3188,8 @@ describe('TransactionsPage', () => {
       'We could not confirm whether this transfer completed.',
     );
     const saved = JSON.parse(
-      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ?? 'null',
+      window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ??
+        'null',
     );
     expect(saved).toEqual(
       expect.objectContaining({
@@ -3116,8 +3248,6 @@ describe('TransactionsPage', () => {
     expect(mockCreateTransaction).toHaveBeenCalledOnce();
   });
 
-
-
   it('aborts only the client wait when the health probe fails during submission', async () => {
     const user = userEvent.setup();
     mockGetMyAccount.mockResolvedValue({
@@ -3131,16 +3261,14 @@ describe('TransactionsPage', () => {
     });
     mockGetHealth.mockRejectedValueOnce(new Error('API unreachable'));
     mockCreateTransaction.mockImplementationOnce(
-      (
-        _token: string,
-        _request: unknown,
-        _key: string,
-        signal: AbortSignal,
-      ) =>
+      (_token: string, _request: unknown, _key: string, signal: AbortSignal) =>
         new Promise((_resolve, reject) => {
           signal.addEventListener(
             'abort',
-            () => reject(new ApiClientError('Request outcome unknown.', null, true)),
+            () =>
+              reject(
+                new ApiClientError('Request outcome unknown.', null, true),
+              ),
             { once: true },
           );
         }),
@@ -3163,8 +3291,6 @@ describe('TransactionsPage', () => {
       window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
     ).not.toBeNull();
   });
-
-
 
   it('does not start idempotency recovery from connectivity events when no attempt exists', async () => {
     mockGetMyAccount.mockResolvedValue({
@@ -3195,8 +3321,6 @@ describe('TransactionsPage', () => {
     ).toBeNull();
   });
 
-
-
   it('keeps the original idempotency attempt locked when resume remains PROCESSING', async () => {
     const key = 'v2-resume-still-processing';
     window.sessionStorage.setItem(
@@ -3205,14 +3329,25 @@ describe('TransactionsPage', () => {
         key,
         signature: 'saved-signature',
         protocolVersion: 2,
-        request: { destination_iban: VALID_IBAN, amount: '40.00', reference: null },
+        request: {
+          destination_iban: VALID_IBAN,
+          amount: '40.00',
+          reference: null,
+        },
       }),
     );
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
-    mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'PROCESSING' });
+    mockGetTransactionIdempotencyStatus.mockResolvedValue({
+      status: 'PROCESSING',
+    });
     mockResumeTransaction.mockResolvedValue({ status: 'PROCESSING' });
 
     render(<TransactionsPage />);
@@ -3222,9 +3357,16 @@ describe('TransactionsPage', () => {
         'The original transfer is still processing. Its key and recovery record remain saved.',
       );
     });
-    expect(mockResumeTransaction).toHaveBeenCalledWith('test-access-token', key);
-    expect(JSON.parse(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ?? 'null'))
-      .toEqual(expect.objectContaining({ key, protocolVersion: 2 }));
+    expect(mockResumeTransaction).toHaveBeenCalledWith(
+      'test-access-token',
+      key,
+    );
+    expect(
+      JSON.parse(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ??
+          'null',
+      ),
+    ).toEqual(expect.objectContaining({ key, protocolVersion: 2 }));
     expect(mockCreateTransaction).not.toHaveBeenCalled();
   });
 
@@ -3236,15 +3378,28 @@ describe('TransactionsPage', () => {
         key,
         signature: 'saved-signature',
         protocolVersion: 2,
-        request: { destination_iban: VALID_IBAN, amount: '40.00', reference: null },
+        request: {
+          destination_iban: VALID_IBAN,
+          amount: '40.00',
+          reference: null,
+        },
       }),
     );
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
-    mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'PROCESSING' });
-    mockResumeTransaction.mockRejectedValue(new Error('temporarily unavailable'));
+    mockGetTransactionIdempotencyStatus.mockResolvedValue({
+      status: 'PROCESSING',
+    });
+    mockResumeTransaction.mockRejectedValue(
+      new Error('temporarily unavailable'),
+    );
 
     render(<TransactionsPage />);
 
@@ -3253,9 +3408,16 @@ describe('TransactionsPage', () => {
         'The original transfer could not be resumed yet. Its key remains saved; check again when the connection is stable.',
       );
     });
-    expect(mockResumeTransaction).toHaveBeenCalledWith('test-access-token', key);
-    expect(JSON.parse(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ?? 'null'))
-      .toEqual(expect.objectContaining({ key, protocolVersion: 2 }));
+    expect(mockResumeTransaction).toHaveBeenCalledWith(
+      'test-access-token',
+      key,
+    );
+    expect(
+      JSON.parse(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1') ??
+          'null',
+      ),
+    ).toEqual(expect.objectContaining({ key, protocolVersion: 2 }));
     expect(mockCreateTransaction).not.toHaveBeenCalled();
   });
 
@@ -3266,8 +3428,13 @@ describe('TransactionsPage', () => {
       JSON.stringify({ key, signature: 'saved-signature', protocolVersion: 2 }),
     );
     mockGetMyAccount.mockResolvedValue({
-      id: 1, user_id: 1, account_number: '1234567890', iban: VALID_IBAN,
-      bic: 'IDEMDEFFXXX', created_at: '2026-09-30T10:00:00Z', balance: '1000.0000',
+      id: 1,
+      user_id: 1,
+      account_number: '1234567890',
+      iban: VALID_IBAN,
+      bic: 'IDEMDEFFXXX',
+      created_at: '2026-09-30T10:00:00Z',
+      balance: '1000.0000',
     });
     mockGetTransactionIdempotencyStatus.mockResolvedValue({ status: 'FAILED' });
 
@@ -3277,10 +3444,11 @@ describe('TransactionsPage', () => {
       'The previous transfer failed (unknown reason). You can start a new transfer.',
     );
     await waitFor(() => {
-      expect(window.sessionStorage.getItem('idemerax:pending-transaction:v1:1')).toBeNull();
+      expect(
+        window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
+      ).toBeNull();
     });
     expect(mockCreateTransaction).not.toHaveBeenCalled();
     expect(mockResumeTransaction).not.toHaveBeenCalled();
   });
-
 });
