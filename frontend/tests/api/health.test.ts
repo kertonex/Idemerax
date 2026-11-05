@@ -12,6 +12,6 @@ describe('getHealth', () => {
     vi.mocked(apiClient).mockResolvedValue({ status: 'ok' });
 
     await expect(getHealth()).resolves.toEqual({ status: 'ok' });
-    expect(apiClient).toHaveBeenCalledWith('/health');
+    expect(apiClient).toHaveBeenCalledWith('/health', { timeoutMs: 2000 });
   });
 });
