@@ -13,20 +13,19 @@ The **Idemerax Backend** provides the server-side foundation for a full-stack tr
 It combines a layered application architecture with secure authentication, asynchronous PostgreSQL persistence, explicit database migrations, automated testing, security analysis, and reproducible CI/CD validation.
 
 
-The backend is organized around clear architectural boundaries and
-currently provides the authentication foundation, PostgreSQL
-persistence, database migrations, repository abstractions, automated
-testing, and containerized execution required by the platform.
+The backend implements authenticated account workflows, transaction creation and history, idempotent transfer processing, and durable recovery for interrupted requests. PostgreSQL constraints and explicit Alembic migrations protect persisted transaction state, while automated unit, integration, and API tests verify the important processing and recovery paths.
 
 ### Core engineering concerns
 
 -   🔐 Secure authentication and protected API access
--   🗄️ Reliable PostgreSQL persistence
+-   🗄️ Reliable PostgreSQL persistence and explicit database transactions
+-   💸 Account-to-account transfer processing and transaction history
+-   🔑 Idempotency keys, canonical request fingerprints, and replay protection
+-   ♻️ Durable transaction reservations, status reconciliation, and recovery
 -   🔄 Controlled token and session lifecycles
--   🧩 Separation of API, application, domain, and infrastructure
-    concerns
+-   🧩 Separation of API, application, domain, and infrastructure concerns
 -   🛡️ Secure credential and token handling
--   🧪 Automated unit and integration testing
+-   🧪 Automated unit, integration, and API testing
 -   🐳 Reproducible containerized execution
 
 Idemerax is a **fintech MVP and engineering demonstration environment**.
@@ -47,8 +46,8 @@ The backend follows a layered architecture that separates HTTP concerns, applica
                ▼
 ┌──────────────────────────────┐
 │       Application            │
-│ Authentication Use Cases     │
-│ Repository Ports             │
+│ Authentication / Account     │
+│ Transaction / Recovery Flows │
 └──────────────┬───────────────┘
                │
                ▼
@@ -70,10 +69,7 @@ The backend follows a layered architecture that separates HTTP concerns, applica
 └──────────────────────────────┘
 ```
 
-The current implementation has a complete authentication workflow built
-on top of this structure. The account, transaction, idempotency, and
-reliability directories establish the architectural boundaries for the
-broader platform.
+The implementation uses this structure for authentication, account management, transfer processing, and durable transaction recovery. HTTP endpoints coordinate application services; the recovery service persists the transfer intent before execution, while repositories isolate PostgreSQL access and database locking from the API layer.
 
 ------------------------------------------------------------------------
 
@@ -86,11 +82,10 @@ The API layer exposes the HTTP interface of the backend.
 Current responsibilities include:
 
 -   FastAPI application configuration
--   Authentication routes
--   Account routes
--   Authentication dependencies
--   Request validation
--   Response schemas
+-   Authentication, account, card, settings, and transaction routes
+-   Protected API dependencies and authenticated account ownership
+-   Transaction creation, history, idempotency status, and recovery endpoints
+-   Request validation and typed request/response schemas
 -   CORS configuration
 -   Health checks
 
@@ -116,6 +111,20 @@ Current account endpoints are:
 POST /accounts
 GET  /accounts/me
 ```
+
+Current transaction and recovery endpoints are:
+
+``` text
+POST /transactions
+GET  /transactions
+GET  /transactions/idempotency/pending
+GET  /transactions/idempotency/{idempotency_key}
+POST /transactions/idempotency/{idempotency_key}/resume
+```
+
+All transaction and recovery endpoints require authentication. The detailed
+idempotency and recovery contract is documented in
+[`../docs/reliability/idempotency.md`](../docs/reliability/idempotency.md).
 
 ------------------------------------------------------------------------
 
@@ -162,6 +171,20 @@ The authentication application layer is responsible for:
 This keeps authentication workflows separate from FastAPI route handling
 and database implementation details.
 
+Current transaction workflows include:
+
+``` text
+app/application/transactions/
+├── ports.py
+├── process_transaction.py
+└── recover_transaction.py
+```
+
+`TransactionProcessing` validates transfer input and calculates the canonical
+request fingerprint. `RecoverTransaction` reserves the transfer intent durably,
+then resumes it using the persisted operation data. The API layer maps these
+application outcomes to HTTP responses.
+
 ------------------------------------------------------------------------
 
 ### 🧠 Domain Layer
@@ -176,12 +199,11 @@ app/domain/
 └── transaction/
 ```
 
-These boundaries are intended to isolate business concepts from API and
-infrastructure concerns.
-
-The current repository structure establishes these boundaries while the
-corresponding domain behavior is developed alongside the application
-features.
+The idempotency domain module contains the canonical transaction fingerprint
+implementation in `app/domain/idempotency/fingerprint.py`. It normalizes the
+transfer destination, amount, and reference before computing a SHA-256 hash.
+The application layer uses this fingerprint to distinguish a legitimate replay
+from reuse of the same key for a different transfer intent.
 
 ------------------------------------------------------------------------
 
@@ -203,8 +225,9 @@ The database infrastructure uses SQLAlchemy's asynchronous API and
 PostgreSQL through the Psycopg driver.
 
 Repositories provide database access to application workflows without
-exposing SQLAlchemy session operations directly to the authentication
-use cases.
+exposing SQLAlchemy session operations directly to application services.
+Transaction and recovery repositories handle idempotency lookups, durable
+reservations, account locking, transaction history, and persisted recovery state.
 
 ------------------------------------------------------------------------
 
@@ -215,10 +238,13 @@ The backend architecture is designed around the reliability characteristics that
 | Focus | Backend approach |
 | --- | --- |
 | 🔐 Authentication | Argon2id password hashing, RS256 JWTs, protected routes, refresh-session management |
-| 🗄️ Data Integrity | PostgreSQL constraints, typed persistence models, explicit migrations |
+| 💸 Transaction Processing | Validated account-to-account transfers and paginated transaction history |
+| 🔑 Idempotency | Source-account-scoped keys, canonical SHA-256 request fingerprints, deterministic completed replays |
+| ♻️ Transaction Recovery | Durable `PROCESSING` reservations, status reconciliation, and server-side resume |
+| 🗄️ Data Integrity | PostgreSQL constraints, typed persistence models, explicit migrations, atomic balance/transaction commits |
 | 🔄 Session Reliability | Refresh-token rotation and server-side session revocation |
 | 🧩 Separation of Concerns | API, application, domain, and infrastructure boundaries |
-| 🧪 Verification | Unit and integration tests with coverage reporting |
+| 🧪 Verification | Unit, integration, and API tests for fingerprinting, replay, conflicts, and recovery |
 | 🛡️ Security | Gitleaks, Trivy, Bandit, CodeQL, secure cookie configuration |
 | 🐳 Reproducibility | Locked dependencies and containerized builds |
 
@@ -609,6 +635,30 @@ Amounts use:
 NUMERIC(19, 4)
 ```
 
+Completed transaction rows also retain the `idempotency_key` and
+`request_fingerprint` used to create the transfer. The fields are nullable for
+historical transactions, but database constraints require them to be present
+together when either is populated. A unique constraint scopes the key to the
+source account.
+
+------------------------------------------------------------------------
+
+### ♻️ TransactionRecovery
+
+The `transaction_recovery` table stores the durable transfer intent required
+to recover an interrupted operation. It includes:
+
+-   `source_account_id` and `destination_account_id`
+-   `idempotency_key` and `request_fingerprint`
+-   `amount`, `reference`, and `transfer_method`
+-   `status`, optional `transaction_id`, and optional `failure_code`
+-   `created_at` and `updated_at`
+
+The persisted statuses are `PROCESSING`, `COMPLETED`, and `FAILED`. A partial
+unique index permits at most one `PROCESSING` reservation per source account.
+The `UNKNOWN` outcome is client-side uncertainty and is not stored as a backend
+recovery status.
+
 ------------------------------------------------------------------------
 
 ### 🔄 RefreshSession
@@ -630,18 +680,19 @@ deletion.
 
 Alembic manages database schema changes.
 
-The current migration history includes:
+The following revisions are directly relevant to transaction persistence,
+idempotency, and durable recovery. Unrelated account, card, and settings
+revisions are omitted from this summary:
 
-``` text
-59fa6455a178
-└── create initial database schema
-
-c305d0979ce3
-└── add authentication fields to users
-
-1760345b3dca
-└── create refresh sessions table
-```
+| Revision | Purpose |
+| --- | --- |
+| `f67e7de5a683` | Create the transaction table and account relationships. |
+| `bcaa4b03d316` | Add the database default for transaction creation timestamps. |
+| `6f496da523cc` | Add the optional transaction reference. |
+| `c77d75119cea` | Add the transfer-method field. |
+| `f18a6b2d9c41` | Add transaction idempotency keys and request fingerprints. |
+| `b4e81c2a9f63` | Validate and enforce transaction idempotency constraints. |
+| `ce71b4a09d32` | Add durable transaction recovery records. |
 
 Apply all pending migrations:
 
@@ -655,13 +706,16 @@ Create a migration after model changes:
 uv run alembic revision --autogenerate -m "describe migration"
 ```
 
-Generated migrations should always be reviewed before they are applied.
+Generated migrations should always be reviewed before they are applied. The
+idempotency-constraint migration checks existing transaction metadata and
+aborts if invalid rows are found; review and repair those rows before rerunning
+it. Back up non-disposable database data before applying schema changes.
 
 ------------------------------------------------------------------------
 
 ## 🔌 Repository Pattern
 
-Database access for authentication is isolated behind repository
+Database access for application workflows is isolated behind repository
 classes.
 
 Current repositories include:
@@ -669,7 +723,10 @@ Current repositories include:
 ``` text
 app/infrastructure/repositories/
 ├── account.py
+├── financial_institution.py
 ├── refresh_session.py
+├── transaction.py
+├── transaction_recovery.py
 └── user.py
 ```
 
@@ -688,6 +745,11 @@ get_by_token_hash()
 create()
 delete()
 ```
+
+`TransactionRepository` and `TransactionRecoveryRepository` provide the
+persistence operations used to find transactions by source account and key,
+list account-owned history, create durable recovery records, lock a recovery
+record for resume, and retrieve pending operations for the authenticated user.
 
 Authentication application services depend on repository ports rather
 than directly depending on concrete database operations.
@@ -728,6 +790,15 @@ Refresh-session configuration includes:
 ``` text
 REFRESH_SESSION_EXPIRE_DAYS
 ```
+
+### Idempotency & Recovery Configuration
+
+The current backend does not define environment variables for idempotency-key
+expiration, fingerprint algorithm selection, or recovery retention. The key
+format and SHA-256 fingerprinting behavior are implemented in code, and durable
+recovery state is stored in PostgreSQL. There is no configured automatic key
+TTL or scheduled cleanup process; do not assume that an idempotency key expires
+after a fixed interval.
 
 The application currently defaults to:
 
@@ -807,6 +878,32 @@ Account ownership is derived from the authenticated user and enforced by the
 backend. Account-management operations do not directly modify the account
 balance.
 
+### Transaction & Idempotency Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/transactions` | Create or replay a transfer. Requires `Idempotency-Key` and a transfer request body. |
+| `GET` | `/transactions` | Retrieve paginated incoming and outgoing transaction history. |
+| `GET` | `/transactions/idempotency/pending` | Retrieve the authenticated user's pending durable recovery operation. |
+| `GET` | `/transactions/idempotency/{idempotency_key}` | Retrieve `NOT_FOUND`, `PROCESSING`, `COMPLETED`, or `FAILED` status and any completed transaction. |
+| `POST` | `/transactions/idempotency/{idempotency_key}/resume` | Resume a pending reservation using its server-side data; no request body is required. |
+
+#### Transfer creation responses
+
+- `201 Created`: a new reservation was created and the transfer completed in the current request.
+- `200 OK`: an existing matching reservation was completed, or a previously completed request was replayed.
+- `400 Bad Request`: invalid transfer input or a persisted terminal failure.
+- `401 Unauthorized`: the request is not authenticated.
+- `409 Conflict`: the key was reused with a different fingerprint, or another transfer is awaiting confirmation for the source account.
+- `422 Unprocessable Entity`: request-body or key-format validation failed.
+- `503 Service Unavailable`: a recognized transient PostgreSQL transaction conflict prevented completion; the response includes `Retry-After: 1`. The shared session boundary can also return `503` from pending, status, and resume endpoints.
+
+The status endpoint reports `NOT_FOUND`, `PROCESSING`, `COMPLETED`, or `FAILED`. The resume endpoint returns a terminal `COMPLETED` or `FAILED` result; when a transient conflict interrupts recovery, the operation remains available for another status check and resume attempt using the same key.
+
+The detailed key scope, fingerprint canonicalization, state transitions, retry
+sequence, response examples, and migration notes are maintained in
+[`../docs/reliability/idempotency.md`](../docs/reliability/idempotency.md).
+
 ## 🧪 Testing
 
 The backend uses pytest with asynchronous tests for database and API
@@ -840,6 +937,10 @@ Unit tests cover:
 -   SQLAlchemy models
 -   Database sessions
 -   Authentication schemas
+-   Transaction request and response schemas
+-   Canonical idempotency fingerprint normalization
+-   Transaction processing and durable recovery use cases
+-   Idempotency replay, conflicts, and terminal failure handling
 
 ### Integration Tests
 
@@ -854,6 +955,9 @@ Integration tests cover:
 -   Authentication repository behavior
 -   Commit and rollback behavior
 -   Database transactions
+-   Transaction creation and history API behavior
+-   Idempotency status, pending recovery, and resume endpoints
+-   Transaction ownership and idempotency conflict handling
 
 Run the complete test suite:
 
@@ -1076,68 +1180,73 @@ uv run bandit -r app
 
 ## 📁 Project Structure
 
-``` text
+The following tree highlights the backend modules relevant to the implemented
+application workflows, transaction processing, idempotency, persistence, and tests.
+
+```text
 backend/
-│
 ├── app/
 │   ├── api/
 │   │   ├── dependencies.py
 │   │   └── routes/
 │   │       ├── accounts.py
-│   │       └── authentication.py
-│   │
+│   │       ├── authentication.py
+│   │       ├── cards.py
+│   │       ├── settings.py
+│   │       └── transactions.py
 │   ├── application/
 │   │   ├── accounts/
 │   │   ├── authentication/
-│   │   │   ├── authenticate_user.py
-│   │   │   ├── ports.py
-│   │   │   ├── register_user.py
-│   │   │   ├── renew_access_token.py
-│   │   │   └── revoke_refresh_session.py
-│   │   ├── idempotency/
+│   │   ├── cards/
+│   │   ├── settings/
 │   │   └── transactions/
-│   │
+│   │       ├── ports.py
+│   │       ├── process_transaction.py
+│   │       └── recover_transaction.py
 │   ├── core/
 │   │   ├── config.py
 │   │   └── security.py
-│   │
 │   ├── domain/
 │   │   ├── account/
 │   │   ├── idempotency/
-│   │   ├── shared/
+│   │   │   └── fingerprint.py
 │   │   └── transaction/
-│   │
 │   ├── infrastructure/
 │   │   ├── database/
-│   │   │   ├── base.py
-│   │   │   ├── connection.py
-│   │   │   ├── models/
-│   │   │   └── session.py
-│   │   ├── reliability/
+│   │   │   └── models/
+│   │   │       ├── account.py
+│   │   │       ├── transaction.py
+│   │   │       ├── transaction_recovery.py
+│   │   │       └── user.py
 │   │   └── repositories/
 │   │       ├── account.py
-│   │       ├── refresh_session.py
+│   │       ├── financial_institution.py
+│   │       ├── transaction.py
+│   │       ├── transaction_recovery.py
 │   │       └── user.py
-│   │
 │   ├── main.py
 │   └── schemas/
-│       └── authentication.py
-│
+│       └── transaction.py
 ├── alembic/
-│   ├── env.py
 │   └── versions/
-│
 ├── tests/
 │   ├── integration/
 │   │   ├── api/
+│   │   │   ├── test_transaction_history.py
+│   │   │   ├── test_transaction_idempotency_status.py
+│   │   │   └── test_transactions.py
 │   │   └── database/
 │   └── unit/
+│       ├── api/
+│       │   ├── test_transaction_idempotency_routes.py
+│       │   └── test_transaction_retry.py
 │       ├── application/
-│       │   └── authentication/
-│       ├── core/
-│       ├── database/
+│       │   └── transactions/
+│       ├── domain/
+│       │   └── idempotency/
+│       │       └── test_fingerprint.py
 │       └── schemas/
-│
+│           └── test_transaction.py
 ├── Dockerfile
 ├── alembic.ini
 ├── pyproject.toml
@@ -1176,6 +1285,7 @@ This project is not intended for production financial use.
 - [🤝 Contribution Guidelines](https://github.com/kertonex/Idemerax/blob/main/CONTRIBUTING.md)
 - [🔒 Security Policy](https://github.com/kertonex/Idemerax/blob/main/SECURITY.md)
 - [🏗️ Project Organization](https://github.com/kertonex/Idemerax/blob/main/docs/architecture/project-organization.md)
+- [🔄 Idempotency & Transaction Recovery](https://github.com/kertonex/Idemerax/blob/main/docs/reliability/idempotency.md)
 - [📐 Development Conventions](https://github.com/kertonex/Idemerax/blob/main/docs/conventions.md)
 
 
@@ -1184,6 +1294,9 @@ This project is not intended for production financial use.
 Idemerax is actively developed as a fintech MVP and engineering
 demonstration project.
 
-The backend currently provides the authentication foundation together
-with the persistence, migration, testing, and infrastructure foundations
-for the broader transaction-processing platform.
+The backend currently provides authentication, account management,
+transaction creation and history, idempotent transfer processing, and durable
+recovery for interrupted transfers. PostgreSQL persistence, Alembic migrations,
+repository abstractions, automated tests, security analysis, and containerized
+execution support these workflows. The application remains an MVP and does not
+connect to external banking or payment infrastructure.
