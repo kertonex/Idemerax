@@ -5,5 +5,6 @@ export type HealthResponse = {
 };
 
 export function getHealth(): Promise<HealthResponse> {
-  return apiClient<HealthResponse>('/health');
+  // Keep connectivity probes short; the general API timeout is longer for mutations.
+  return apiClient<HealthResponse>('/health', { timeoutMs: 2000 });
 }

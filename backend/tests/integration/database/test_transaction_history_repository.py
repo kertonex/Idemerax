@@ -51,6 +51,8 @@ async def test_list_for_user_returns_outgoing_transaction() -> None:
             transaction_type="TRANSFER",
             status="COMPLETED",
             reference="Outgoing transfer",
+            idempotency_key=f"history-outgoing-{uuid4()}",
+            request_fingerprint="a" * 64,
         )
         transaction_id = transaction.id
         await session.commit()
@@ -88,6 +90,8 @@ async def test_list_for_user_returns_incoming_transaction() -> None:
             amount=Decimal("40.00"),
             transaction_type="TRANSFER",
             status="COMPLETED",
+            idempotency_key=f"history-incoming-{uuid4()}",
+            request_fingerprint="b" * 64,
         )
         transaction_id = transaction.id
         await session.commit()
@@ -127,6 +131,8 @@ async def test_list_for_user_excludes_transactions_of_other_users() -> None:
             amount=Decimal("15.00"),
             transaction_type="TRANSFER",
             status="COMPLETED",
+            idempotency_key=f"history-private-{uuid4()}",
+            request_fingerprint="c" * 64,
         )
         await session.commit()
 
@@ -164,6 +170,8 @@ async def test_list_for_user_counts_all_matching_transactions_before_pagination(
                 amount=Decimal(amount),
                 transaction_type="TRANSFER",
                 status="COMPLETED",
+                idempotency_key=f"history-pagination-{uuid4()}",
+                request_fingerprint="d" * 64,
             )
 
         await session.commit()
@@ -198,6 +206,8 @@ async def test_list_for_user_returns_empty_page_when_offset_exceeds_total() -> N
             amount=Decimal("12.00"),
             transaction_type="TRANSFER",
             status="COMPLETED",
+            idempotency_key=f"history-offset-{uuid4()}",
+            request_fingerprint="e" * 64,
         )
         await session.commit()
 
@@ -233,6 +243,8 @@ async def test_list_for_user_returns_transactions_newest_first() -> None:
             transaction_type="TRANSFER",
             status="COMPLETED",
             reference="First",
+            idempotency_key=f"history-order-first-{uuid4()}",
+            request_fingerprint="f" * 64,
         )
         second = await repository.create(
             source_account_id=source_account.id,
@@ -241,6 +253,8 @@ async def test_list_for_user_returns_transactions_newest_first() -> None:
             transaction_type="TRANSFER",
             status="COMPLETED",
             reference="Second",
+            idempotency_key=f"history-order-second-{uuid4()}",
+            request_fingerprint="0" * 64,
         )
 
         first_id = first.id

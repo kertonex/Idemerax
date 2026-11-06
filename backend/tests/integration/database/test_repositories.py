@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.domain.account.iban import generate_account_number
@@ -357,6 +358,8 @@ async def test_create_transaction_persists_transaction() -> None:
             amount=Decimal("100.00"),
             transaction_type="TRANSFER",
             status="COMPLETED",
+            idempotency_key=f"repository-transaction-{uuid4()}",
+            request_fingerprint="d" * 64,
         )
 
         assert transaction.id is not None
@@ -405,6 +408,8 @@ async def test_create_transaction_does_not_commit_transaction() -> None:
             amount=Decimal("100.00"),
             transaction_type="TRANSFER",
             status="COMPLETED",
+            idempotency_key=f"repository-rollback-{uuid4()}",
+            request_fingerprint="e" * 64,
         )
 
         transaction_id = transaction.id
@@ -418,3 +423,39 @@ async def test_create_transaction_does_not_commit_transaction() -> None:
         persisted_transaction = result.scalar_one_or_none()
 
     assert persisted_transaction is None
+
+
+@pytest.mark.anyio
+async def test_transaction_rejects_partial_idempotency_metadata() -> None:
+    """The database must not persist a key without its request fingerprint."""
+    async with SessionFactory() as session:
+        first_user = User(
+            email=f"idempotency-source-{uuid4()}@example.com",
+            password_hash="test-password-hash",
+        )
+        second_user = User(
+            email=f"idempotency-destination-{uuid4()}@example.com",
+            password_hash="test-password-hash",
+        )
+        session.add_all([first_user, second_user])
+        await session.flush()
+
+        account_repository = AccountRepository(session)
+        source_account = await account_repository.create(user_id=first_user.id)
+        destination_account = await account_repository.create(user_id=second_user.id)
+
+        transaction = Transaction(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=Decimal("10.0000"),
+            transaction_type="TRANSFER",
+            status="COMPLETED",
+            idempotency_key=f"partial-{uuid4()}",
+            request_fingerprint=None,
+        )
+        session.add(transaction)
+
+        with pytest.raises(IntegrityError):
+            await session.flush()
+
+        await session.rollback()

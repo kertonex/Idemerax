@@ -7,6 +7,7 @@ type RecipientMethod = 'iban' | 'email';
 interface TransactionFormProps {
   isSubmitting: boolean;
   error: string | null;
+  isRetryingUncertain?: boolean;
   onSubmit: (
     recipientMethod: RecipientMethod,
     destination: string,
@@ -48,6 +49,28 @@ function isGermanIban(value: string): boolean {
 
 function isValidIbanLength(value: string): boolean {
   return getRawIban(value).length === 22;
+}
+
+function hasValidIbanChecksum(value: string): boolean {
+  const iban = getRawIban(value).toUpperCase();
+
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban)) {
+    return false;
+  }
+
+  const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`;
+  const numericIban = Array.from(rearranged, (character) =>
+    /[A-Z]/.test(character) ? String(character.charCodeAt(0) - 55) : character,
+  ).join('');
+
+  let remainder = 0;
+
+  for (let index = 0; index < numericIban.length; index += 7) {
+    remainder =
+      Number(`${remainder}${numericIban.slice(index, index + 7)}`) % 97;
+  }
+
+  return remainder === 1;
 }
 
 function normalizeAmount(value: string): string {
@@ -126,6 +149,7 @@ function formatBalance(balance: string | null): string {
 function TransactionForm({
   isSubmitting,
   error,
+  isRetryingUncertain = false,
   onSubmit,
   availableBalance,
   isLoadingBalance,
@@ -148,7 +172,11 @@ function TransactionForm({
 
   const germanIban = isGermanIban(destinationIban);
   const ibanReachedMaximumLength = rawIban.length === 22;
-  const ibanIsValid = germanIban && isValidIbanLength(destinationIban);
+
+  const ibanIsValid =
+    germanIban &&
+    isValidIbanLength(destinationIban) &&
+    hasValidIbanChecksum(destinationIban);
 
   const emailIsValid =
     destinationEmail.trim().length > 0 && isValidEmail(destinationEmail);
@@ -164,7 +192,17 @@ function TransactionForm({
   const recipientIsValid =
     recipientMethod === 'iban' ? ibanIsValid : emailIsValid;
 
-  const canSubmit = recipientIsValid && amountIsValid && !isSubmitting;
+  const numericBalance =
+    availableBalance === null ? Number.NaN : Number(availableBalance);
+
+  const amountExceedsBalance =
+    !isLoadingBalance &&
+    Number.isFinite(numericBalance) &&
+    amountIsValid &&
+    getNumericAmount(amount) > numericBalance;
+
+  const canSubmit =
+    recipientIsValid && amountIsValid && !amountExceedsBalance && !isSubmitting;
 
   const showCountryError =
     recipientMethod === 'iban' && ibanCountryCode.length === 2 && !germanIban;
@@ -251,14 +289,10 @@ function TransactionForm({
       return;
     }
 
-    const formattedIbanIsGerman = isGermanIban(formattedIban);
-    const formattedIbanIsValid =
-      formattedIbanIsGerman && isValidIbanLength(formattedIban);
-
     setDestinationIban(formattedIban);
     setBankDetails(null);
     setBankDetailsError(null);
-    setIsLoadingBankDetails(Boolean(accessToken && formattedIbanIsValid));
+    setIsLoadingBankDetails(false);
   }
 
   function handleEmailChange(event: React.ChangeEvent<HTMLInputElement>): void {
@@ -307,7 +341,6 @@ function TransactionForm({
 
           <div>
             <h2 className="text-lg font-semibold text-white">New transfer</h2>
-
             <p className="mt-1 text-sm text-slate-400">
               Send money securely to another account.
             </p>
@@ -504,7 +537,6 @@ function TransactionForm({
                       <div className="h-4 w-28 animate-pulse rounded bg-slate-800" />
                       <div className="h-3 w-36 animate-pulse rounded bg-slate-800" />
                     </div>
-
                     <div className="h-7 w-28 animate-pulse rounded-full bg-slate-800" />
                   </div>
                 ) : bankDetails ? (
@@ -531,14 +563,11 @@ function TransactionForm({
                         <p className="text-sm font-semibold text-slate-100">
                           {bankDetails.bank_name}
                         </p>
-
                         <div className="mt-1 flex items-center gap-2 text-xs">
                           <span className="font-medium uppercase tracking-wide text-slate-500">
                             BIC
                           </span>
-
                           <span className="h-3.5 w-px bg-slate-700" />
-
                           <span className="font-mono tracking-wide text-slate-400">
                             {bankDetails.bic}
                           </span>
@@ -715,7 +744,15 @@ function TransactionForm({
             </div>
           </div>
 
-          {amountExceedsMaximum ? (
+          {amountExceedsBalance ? (
+            <p
+              id="transaction-amount-help"
+              role="alert"
+              className="mt-2 text-xs text-red-400"
+            >
+              The transfer amount exceeds your available balance.
+            </p>
+          ) : amountExceedsMaximum ? (
             <p
               id="transaction-amount-help"
               className="mt-2 text-xs text-red-400"
@@ -761,7 +798,6 @@ function TransactionForm({
                   <path d="M16 14h2" strokeLinecap="round" />
                 </svg>
               </div>
-
               <span className="text-xs text-slate-500">Available balance</span>
             </div>
 
@@ -848,7 +884,6 @@ function TransactionForm({
               <circle cx="12" cy="12" r="9" />
               <path d="M12 8v4m0 4h.01" strokeLinecap="round" />
             </svg>
-
             <span>{error}</span>
           </div>
         )}
@@ -898,14 +933,13 @@ function TransactionForm({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-
                 <path
                   d="m22 2-7 20-4-9-9-4L22 2Z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
-              Send money
+              {isRetryingUncertain ? 'Retry transfer safely' : 'Send money'}
             </>
           )}
         </button>

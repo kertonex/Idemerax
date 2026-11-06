@@ -5,6 +5,9 @@ from app.infrastructure.database.models.financial_institution import (
 )
 from app.infrastructure.database.models.refresh_session import RefreshSession
 from app.infrastructure.database.models.transaction import Transaction
+from app.infrastructure.database.models.transaction_recovery import (
+    TransactionRecovery,
+)
 from app.infrastructure.database.models.user import User
 
 __all__ = [
@@ -13,5 +16,6 @@ __all__ = [
     "FinancialInstitution",
     "RefreshSession",
     "Transaction",
+    "TransactionRecovery",
     "User",
 ]

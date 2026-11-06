@@ -127,6 +127,45 @@ The primary engineering focus is on:
   </tr>
 </table>
 
+
+## 🎬 Engineering Demonstrations
+
+The recordings below demonstrate the main application workflow and the reliability mechanisms implemented in Idemerax. Each demonstration is displayed at the same width in a single-column layout to keep the content easy to read, consistently aligned, and large enough to inspect without opening a separate link.
+
+### 1. End-to-End Transaction Processing
+
+Follow a simulated account-to-account transfer from submission to completion, including the resulting transaction and updated account state.
+
+<p align="center">
+  <img src="docs/assets/transaction-processing.gif" alt="Idemerax end-to-end transaction processing demonstration" width="900">
+</p>
+
+### 2. Network Failure &amp; Recovery
+
+See how an interrupted request is handled: the original attempt is preserved and its outcome is reconciled instead of assuming that a timeout means failure.
+
+<p align="center">
+  <img src="docs/assets/network-failure-recovery.gif" alt="Idemerax network failure and transaction recovery demonstration" width="900">
+</p>
+
+### 3. Idempotency &amp; Duplicate Protection
+
+Submit the same logical transfer again with its original idempotency key. The API returns the existing transaction instead of applying the transfer twice.
+
+<p align="center">
+  <img src="docs/assets/idempotency-duplicate-protection.gif" alt="Idemerax idempotency and duplicate request protection demonstration" width="900">
+</p>
+
+### 4. Concurrent Request Protection
+
+Five concurrent requests use the same key and request body. In the recorded run, all five responses referenced transaction <code>4799</code>: one <code>201 Created</code> and four <code>200 OK</code> responses.
+
+<p align="center">
+  <img src="docs/assets/concurrent-request-protection.gif" alt="Idemerax concurrent request idempotency demonstration" width="900">
+</p>
+
+<sub>These recordings illustrate application behavior. Automated backend and frontend tests provide repeatable verification of the implementation.</sub>
+
 ---
 
 ## 🏗️ Architecture
@@ -245,15 +284,21 @@ For security reporting and project security practices, see [`SECURITY.md`](SECUR
 
 ## 🔄 Reliability, Idempotency & Consistency
 
-Reliability is a central engineering concern of Idemerax rather than an isolated feature.
+Reliability is a core engineering concern of Idemerax. Transaction processing is designed to remain predictable when requests are duplicated, retried, delayed, or interrupted by unreliable network conditions.
 
-### Idempotency
+### Idempotent Transaction Processing
 
-Idempotency is used to ensure that retrying a logical transaction request does not unintentionally apply the same operation multiple times.
+Transfers require an `Idempotency-Key` header. The key is scoped to the source financial account and identifies one logical transfer. Retrying that transfer must reuse the original key and the same request intent.
 
-The design addresses scenarios such as network timeouts, interrupted connections, client retries, duplicate submissions, and requests whose outcome is temporarily uncertain.
+The backend calculates a SHA-256 request fingerprint from the normalized destination, amount, and reference. A matching existing reservation is resumed or a completed request replays the original transaction instead of applying the transfer again. Reusing a key with a different request is rejected with `409 Conflict`.
 
-The idempotency mechanism is intended to integrate with transaction processing so request identity and transaction state remain consistent across retries.
+### Durable Recovery & Transaction States
+
+Before changing balances, the backend persists a `PROCESSING` recovery reservation. The transfer's balance changes, transaction record, and `COMPLETED` state are committed atomically. A reserved operation can therefore be resumed from its server-side snapshot after an interruption.
+
+The durable backend states are `PROCESSING`, `COMPLETED`, and `FAILED`. `UNKNOWN` describes a client-side outcome when a timeout or connection failure prevents the client from knowing whether the server completed the request; it is not a persisted backend state. Clients reconcile an uncertain attempt through the status endpoint and resume a `PROCESSING` operation with the original key.
+
+For a safe retry, the original key must be retained. A new key represents a new logical transfer and must not be generated merely because the previous response was lost.
 
 ### Data Integrity
 
@@ -264,18 +309,20 @@ Database relationships
         │
         ├── Unique and foreign-key constraints
         │
+        ├── Idempotency key and request-fingerprint constraints
+        │
         ├── Application-level validation
         │
-        ├── Repository-based persistence
+        ├── Durable recovery reservations
         │
-        └── Explicit transaction boundaries
+        └── Explicit database transaction boundaries
 ```
 
 ### Transaction Consistency
 
-Related state changes are handled within explicit database transaction boundaries. Successful operations are committed, while failed operations are rolled back so an unsuccessful operation does not leave partially applied state behind.
+The backend commits a durable transfer reservation before execution. During execution, both account balance updates, the completed transaction record, and the recovery state are committed together. Terminal precondition failures are recorded without applying either balance change.
 
-The reliability model will continue to evolve as the remaining transaction-processing and idempotency functionality is implemented.
+The complete key, fingerprint, replay, conflict, state, retry, and reconciliation contract is documented in [Idempotency & Transaction Recovery](docs/reliability/idempotency.md).
 
 ## 🛠️ Technology Stack
 
@@ -441,6 +488,26 @@ http://localhost:8000/redoc
 Account ownership is derived from the authenticated user and enforced by the
 backend.
 
+### Current Transaction & Recovery Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/transactions` | Create an account-to-account transfer using the required `Idempotency-Key` header. |
+| `GET` | `/transactions` | Retrieve the authenticated user's paginated transaction history. |
+| `GET` | `/transactions/idempotency/pending` | Retrieve the authenticated user's pending durable transfer reservation, if any. |
+| `GET` | `/transactions/idempotency/{idempotency_key}` | Reconcile the status of a transfer using its original key. |
+| `POST` | `/transactions/idempotency/{idempotency_key}/resume` | Resume a reserved transfer from its server-side recovery data. |
+
+A new reservation completed by the current request returns `201 Created`; an
+existing matching reservation completed during recovery or a completed replay
+returns `200 OK`. A key reused with a different request returns `409 Conflict`.
+For an uncertain outcome, clients must preserve the original key and reconcile
+through the status endpoint rather than submit a new logical transfer.
+
+### Health Check
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
 | `GET` | `/health` | Backend health check |
 
 The interactive API documentation is the authoritative reference for request and response schemas.
@@ -465,14 +532,20 @@ Idemerax/
 ├── backend/
 │   ├── alembic/
 │   │   └── versions/
-│   │       ├── 1760345b3dca_create_refresh_sessions_table.py
-│   │       ├── 59fa6455a178_create_initial_database_schema.py
-│   │       └── c305d0979ce3_add_authentication_fields_to_users.py
+│   │       ├── f67e7de5a683_create_transactions_table.py
+│   │       ├── bcaa4b03d316_add_transaction_creation_timestamp_.py
+│   │       ├── 6f496da523cc_add_optional_transaction_reference.py
+│   │       ├── c77d75119cea_add_transfer_method_to_transactions.py
+│   │       ├── f18a6b2d9c41_add_transaction_idempotency.py
+│   │       ├── b4e81c2a9f63_enforce_transaction_idempotency_constraints.py
+│   │       └── ce71b4a09d32_add_durable_transaction_recovery.py
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── dependencies.py
 │   │   │   └── routes/
-│   │   │       └── authentication.py
+│   │   │       ├── accounts.py
+│   │   │       ├── authentication.py
+│   │   │       └── transactions.py
 │   │   ├── application/
 │   │   │   ├── accounts/
 │   │   │   ├── authentication/
@@ -483,12 +556,16 @@ Idemerax/
 │   │   │   │   └── revoke_refresh_session.py
 │   │   │   ├── idempotency/
 │   │   │   └── transactions/
+│   │   │       ├── ports.py
+│   │   │       ├── process_transaction.py
+│   │   │       └── recover_transaction.py
 │   │   ├── core/
 │   │   │   ├── config.py
 │   │   │   └── security.py
 │   │   ├── domain/
 │   │   │   ├── account/
 │   │   │   ├── idempotency/
+│   │   │   │   └── fingerprint.py
 │   │   │   ├── shared/
 │   │   │   └── transaction/
 │   │   ├── infrastructure/
@@ -498,6 +575,7 @@ Idemerax/
 │   │   │   │   │   ├── card.py
 │   │   │   │   │   ├── refresh_session.py
 │   │   │   │   │   ├── transaction.py
+│   │   │   │   │   ├── transaction_recovery.py
 │   │   │   │   │   └── user.py
 │   │   │   │   ├── base.py
 │   │   │   │   ├── connection.py
@@ -508,12 +586,16 @@ Idemerax/
 │   │   │       └── user.py
 │   │   ├── main.py
 │   │   └── schemas/
-│   │       └── authentication.py
+│   │       ├── authentication.py
+│   │       └── transaction.py
 │   ├── tests/
 │   │   ├── e2e/
 │   │   ├── integration/
 │   │   │   ├── api/
 │   │   │   │   ├── test_authentication_api.py
+│   │   │   │   ├── test_transaction_idempotency_status.py
+│   │   │   │   ├── test_transaction_history.py
+│   │   │   │   ├── test_transactions.py
 │   │   │   │   ├── test_cors.py
 │   │   │   │   └── test_health.py
 │   │   │   └── database/
@@ -521,12 +603,18 @@ Idemerax/
 │   │   │       ├── test_repositories.py
 │   │   │       └── test_transactions.py
 │   │   └── unit/
+│   │       ├── api/
+│   │       │   ├── test_transaction_idempotency_routes.py
+│   │       │   └── test_transaction_retry.py
 │   │       ├── application/
-│   │       │   └── authentication/
-│   │       │       ├── test_authenticate_user.py
-│   │       │       ├── test_register_user.py
-│   │       │       ├── test_renew_access_token.py
-│   │       │       └── test_revoke_refresh_session.py
+│   │       │   ├── authentication/
+│   │       │   │   ├── test_authenticate_user.py
+│   │       │   │   ├── test_register_user.py
+│   │       │   │   ├── test_renew_access_token.py
+│   │       │   │   └── test_revoke_refresh_session.py
+│   │       │   └── transactions/
+│   │       │       ├── test_process_transaction.py
+│   │       │       └── test_recover_transaction.py
 │   │       ├── core/
 │   │       │   └── test_security.py
 │   │       ├── database/
@@ -535,8 +623,11 @@ Idemerax/
 │   │       │   ├── test_models.py
 │   │       │   └── test_session.py
 │   │       ├── domain/
+│   │       │   └── idempotency/
+│   │       │       └── test_fingerprint.py
 │   │       └── schemas/
-│   │           └── test_authentication.py
+│   │           ├── test_authentication.py
+│   │           └── test_transaction.py
 │   ├── .dockerignore
 │   ├── .env.example
 │   ├── .python-version
@@ -546,10 +637,16 @@ Idemerax/
 │   ├── pyproject.toml
 │   └── uv.lock
 ├── docs/
+│   ├── assets/
+│   │   ├── transaction-processing.gif
+│   │   ├── network-failure-recovery.gif
+│   │   ├── idempotency-duplicate-protection.gif
+│   │   └── concurrent-request-protection.gif
 │   ├── architecture/
 │   │   └── project-organization.md
 │   ├── decisions/
 │   ├── reliability/
+│   │   └── idempotency.md
 │   └── conventions.md
 ├── frontend/
 │   ├── public/
@@ -714,6 +811,7 @@ All application data used by the project is test, mock, or generated data.
 | --- | --- |
 | [`backend/README.md`](backend/README.md) | Backend architecture, setup, testing, persistence, and development details. |
 | [`docs/architecture/project-organization.md`](docs/architecture/project-organization.md) | Project organization and module responsibilities. |
+| [`docs/reliability/idempotency.md`](docs/reliability/idempotency.md) | Idempotency key contract, fingerprinting, replay, transaction states, safe retries, and recovery. |
 | [`docs/conventions.md`](docs/conventions.md) | Repository and development conventions. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution workflow, branching, and commit conventions. |
 | [`SECURITY.md`](SECURITY.md) | Security practices and vulnerability reporting. |
