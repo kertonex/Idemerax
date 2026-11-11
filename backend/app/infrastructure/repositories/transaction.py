@@ -1,7 +1,8 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
@@ -185,3 +186,113 @@ class TransactionRepository:
         ]
 
         return transactions, total
+
+    async def get_account_transaction_number(
+        self,
+        account_id: int,
+        created_at: datetime,
+        transaction_id: int,
+    ) -> int:
+        """Return the one-based chronological number used by transaction history.
+
+        A transaction is counted for the account when that account is either
+        its source or destination. Ties are resolved by the transaction ID,
+        matching the frontend history ordering exactly.
+        """
+        statement = select(func.count(Transaction.id)).where(
+            or_(
+                Transaction.source_account_id == account_id,
+                Transaction.destination_account_id == account_id,
+            ),
+            or_(
+                Transaction.created_at < created_at,
+                and_(
+                    Transaction.created_at == created_at,
+                    Transaction.id <= transaction_id,
+                ),
+            ),
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one())
+
+    async def count_for_user_since(
+        self,
+        user_id: int,
+        since: datetime,
+    ) -> int:
+        """Count transactions involving the user since the supplied timestamp."""
+        source_account = aliased(Account)
+        destination_account = aliased(Account)
+
+        statement = (
+            select(func.count(Transaction.id))
+            .select_from(Transaction)
+            .join(
+                source_account,
+                Transaction.source_account_id == source_account.id,
+            )
+            .join(
+                destination_account,
+                Transaction.destination_account_id == destination_account.id,
+            )
+            .where(
+                or_(
+                    source_account.user_id == user_id,
+                    destination_account.user_id == user_id,
+                ),
+                Transaction.created_at >= since,
+            )
+        )
+        result = await self.session.execute(statement)
+        return int(result.scalar_one())
+
+    async def get_monthly_cash_flow(
+        self,
+        user_id: int,
+        period_start: datetime,
+        period_end: datetime,
+    ) -> tuple[Decimal, Decimal, int]:
+        """Aggregate completed external transfers for a user's month.
+
+        Transfers between two accounts owned by the same user are excluded so
+        moving money between own accounts does not inflate money in or out.
+        """
+        source_account = aliased(Account)
+        destination_account = aliased(Account)
+        owns_source = source_account.user_id == user_id
+        owns_destination = destination_account.user_id == user_id
+
+        incoming_amount = case(
+            (owns_destination, Transaction.amount),
+            else_=Decimal("0.0000"),
+        )
+        outgoing_amount = case(
+            (owns_source, Transaction.amount),
+            else_=Decimal("0.0000"),
+        )
+        statement = (
+            select(
+                func.coalesce(func.sum(incoming_amount), Decimal("0.0000")),
+                func.coalesce(func.sum(outgoing_amount), Decimal("0.0000")),
+                func.count(Transaction.id),
+            )
+            .select_from(Transaction)
+            .join(
+                source_account,
+                Transaction.source_account_id == source_account.id,
+            )
+            .join(
+                destination_account,
+                Transaction.destination_account_id == destination_account.id,
+            )
+            .where(
+                or_(owns_source, owns_destination),
+                owns_source != owns_destination,
+                Transaction.status == "COMPLETED",
+                Transaction.created_at >= period_start,
+                Transaction.created_at < period_end,
+            )
+        )
+        result = await self.session.execute(statement)
+        incoming, outgoing, count = result.one()
+        return Decimal(incoming), Decimal(outgoing), int(count)
