@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.accounts import router as accounts_router
 from app.api.routes.authentication import router as authentication_router
 from app.api.routes.cards import router as cards_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.transactions import router as transactions_router
 
@@ -20,6 +21,7 @@ app = FastAPI(
 app.include_router(authentication_router)
 app.include_router(accounts_router)
 app.include_router(cards_router)
+app.include_router(dashboard_router)
 app.include_router(transactions_router)
 app.include_router(settings_router)
 

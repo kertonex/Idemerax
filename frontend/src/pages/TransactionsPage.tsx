@@ -259,7 +259,14 @@ interface TransactionsPageContentProps {
 function TransactionsPageContent({
   accessToken,
 }: TransactionsPageContentProps) {
-  const [mode, setMode] = useState<TransactionMode>('send');
+  const [mode, setMode] = useState<TransactionMode>(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get(
+      'tab',
+    );
+    return requestedMode === 'history' || requestedMode === 'receive'
+      ? requestedMode
+      : 'send';
+  });
 
   const [account, setAccount] = useState<Account | null>(null);
   const [isLoadingAccount, setIsLoadingAccount] = useState(() =>
@@ -279,7 +286,18 @@ function TransactionsPageContent({
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [historyTransactionId, setHistoryTransactionId] = useState<
     number | null
-  >(null);
+  >(() => {
+    const rawTransactionId = new URLSearchParams(window.location.search).get(
+      'transactionId',
+    );
+
+    if (!rawTransactionId || !/^[1-9]\d*$/.test(rawTransactionId)) {
+      return null;
+    }
+
+    const transactionId = Number(rawTransactionId);
+    return Number.isSafeInteger(transactionId) ? transactionId : null;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRetryingUncertain, setIsRetryingUncertain] = useState(false);

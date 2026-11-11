@@ -12,6 +12,27 @@ vi.mock('../../src/shared/api/health', () => ({
   getHealth: vi.fn().mockResolvedValue({ status: 'ok' }),
 }));
 
+vi.mock('../../src/features/dashboard/api/dashboard', () => ({
+  getDashboardOverview: vi.fn().mockResolvedValue({
+    currency: 'EUR',
+    total_balance: '1250.50',
+    account_count: 1,
+    active_card_count: 2,
+    recent_activity_count: 3,
+    accounts: [],
+    recent_transactions: [],
+    pending_recovery: null,
+    monthly_cash_flow: {
+      period_start: '2026-11-01T00:00:00Z',
+      period_end: '2026-12-01T00:00:00Z',
+      money_in: '1250.50',
+      money_out: '320.00',
+      net_movement: '930.50',
+      completed_transaction_count: 18,
+    },
+  }),
+}));
+
 /** Render application routes with the provided authentication state. */
 function renderRoutes(initialPath: string, authState: AuthContextValue) {
   return render(
@@ -76,11 +97,11 @@ describe('AppRoutes authentication protection', () => {
     ).toBeInTheDocument();
   });
 
-  it('redirects authenticated users from login to dashboard', () => {
+  it('redirects authenticated users from login to the English dashboard', async () => {
     renderRoutes('/login', authenticatedState);
 
     expect(
-      screen.getByRole('heading', { name: 'Dashboard' }),
+      await screen.findByRole('heading', { name: 'Financial overview' }),
     ).toBeInTheDocument();
   });
 });

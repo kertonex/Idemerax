@@ -595,6 +595,23 @@ describe('SettingsPage', () => {
   });
 
   describe('notifications', () => {
+    it('opens the notifications tab when the settings URL requests it', async () => {
+      window.history.pushState({}, '', '/settings?tab=notifications');
+
+      renderSettingsPage();
+
+      expect(
+        await screen.findByRole('heading', {
+          name: 'notifications.title',
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', {
+          name: 'settings.profile',
+        }),
+      ).not.toBeInTheDocument();
+    });
+
     async function setupNotificationsTab() {
       renderSettingsPage();
       await screen.findByRole('heading', {
