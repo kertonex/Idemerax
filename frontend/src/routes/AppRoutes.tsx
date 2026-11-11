@@ -1,22 +1,13 @@
-import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { useAuth } from '../features/authentication/context/useAuth';
+import DashboardPage from '../pages/DashboardPage';
 import AccountsPage from '../pages/AccountsPage';
 import CardsPage from '../pages/CardsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import SettingsPage from '../pages/SettingsPage';
 import TransactionsPage from '../pages/TransactionsPage';
-import { getHealth } from '../shared/api/health';
-
-function DashboardPage() {
-  useEffect(() => {
-    void getHealth();
-  }, []);
-
-  return <h1 className="text-2xl font-semibold">Dashboard</h1>;
-}
 
 function ReliabilityPage() {
   return <h1 className="text-2xl font-semibold">Reliability</h1>;

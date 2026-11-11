@@ -93,7 +93,17 @@ function getPasswordStrength(
   };
 }
 function getInitialTab(): SettingsTab {
-  return 'profile';
+  const requestedTab = new URLSearchParams(window.location.search).get('tab');
+  const validTabs: SettingsTab[] = [
+    'profile',
+    'security',
+    'preferences',
+    'notifications',
+  ];
+
+  return validTabs.includes(requestedTab as SettingsTab)
+    ? (requestedTab as SettingsTab)
+    : 'profile';
 }
 function SettingsPage() {
   const { t, i18n } = useTranslation();
