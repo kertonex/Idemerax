@@ -5,7 +5,7 @@ import { AuthProvider } from '../../../src/features/authentication/context/AuthP
 import AppShell from '../../../src/components/layout/AppShell';
 
 describe('AppShell', () => {
-  it('renders the application shell', () => {
+  it('renders the responsive application shell and its navigation', () => {
     render(
       <AuthProvider>
         <MemoryRouter>
@@ -16,14 +16,14 @@ describe('AppShell', () => {
       </AuthProvider>,
     );
 
-    expect(screen.getAllByText('Idemerax')).toHaveLength(1);
-    expect(screen.getByText('Welcome back')).toBeInTheDocument();
+    // Mobile and desktop layouts each expose the product wordmark.
+    expect(screen.getAllByText('Idemerax')).toHaveLength(2);
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Accounts')).toBeInTheDocument();
-    expect(screen.getByText('Cards')).toBeInTheDocument();
-    expect(screen.getByText('Transactions')).toBeInTheDocument();
-    expect(screen.getByText('Reliability')).toBeInTheDocument();
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Accounts').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Cards').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Transactions').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Settings').length).toBeGreaterThan(0);
 
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
   });

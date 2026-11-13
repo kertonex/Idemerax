@@ -46,7 +46,7 @@ function CreateCardDialog({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
               Card management
             </p>
             <h2
@@ -96,7 +96,7 @@ function CreateCardDialog({
                 key={account.id}
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                   selectedAccountId === account.id
-                    ? 'border-cyan-400/60 bg-cyan-400/5'
+                    ? 'border-blue-500/70 bg-blue-600/10'
                     : 'border-slate-700 bg-slate-900/60 hover:border-slate-600'
                 }`}
               >
@@ -106,7 +106,7 @@ function CreateCardDialog({
                   value={account.id}
                   checked={selectedAccountId === account.id}
                   onChange={() => setSelectedAccountId(account.id)}
-                  className="mt-1 accent-cyan-400"
+                  className="mt-1 accent-blue-500"
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center justify-between gap-2">
@@ -139,7 +139,7 @@ function CreateCardDialog({
               <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-[#123b57] to-[#087e83]">
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-5 w-5 text-cyan-100"
+                  className="h-5 w-5 text-blue-100"
                   fill="none"
                   aria-hidden="true"
                 >
@@ -187,7 +187,7 @@ function CreateCardDialog({
             <button
               type="submit"
               disabled={isSubmitting || selectedAccountId === null}
-              className="rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Creating card…' : 'Create virtual card'}
             </button>

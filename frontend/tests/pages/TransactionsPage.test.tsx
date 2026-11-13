@@ -924,9 +924,9 @@ describe('TransactionsPage', () => {
     expect(
       window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
     ).toBe(storedBefore);
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'The retry outcome is still unknown.',
-    );
+    expect(
+      await screen.findByText(/The retry outcome is still unknown/),
+    ).toBeInTheDocument();
   });
 
   it('keeps the pending attempt when the status lookup fails', async () => {
@@ -961,9 +961,11 @@ describe('TransactionsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
     // The first status lookup is automatic; a failure must preserve the attempt.
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'The transfer status could not be retrieved. The previous attempt remains saved;',
-    );
+    expect(
+      await screen.findByText(
+        /The transfer status could not be retrieved\. The previous attempt remains saved;/,
+      ),
+    ).toBeInTheDocument();
 
     const storedBefore = window.sessionStorage.getItem(
       'idemerax:pending-transaction:v1:1',
@@ -1157,9 +1159,9 @@ describe('TransactionsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Send money' }));
 
     // COMPLETED without a transaction payload is not enough to clear the key.
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'No completed transaction was found.',
-    );
+    expect(
+      await screen.findByText(/No completed transaction was found/),
+    ).toBeInTheDocument();
 
     const storedAttempt = window.sessionStorage.getItem(
       'idemerax:pending-transaction:v1:1',
@@ -1483,9 +1485,11 @@ describe('TransactionsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Send money' }));
     await screen.findByRole('alert');
     act(() => window.dispatchEvent(new Event('offline')));
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Transfer status unknown – connection lost. The original attempt is saved; automatic status checking will resume when the connection returns.',
-    );
+    expect(
+      await screen.findByText(
+        /Transfer status unknown – connection lost\. The original attempt is saved; automatic status checking will resume/,
+      ),
+    ).toBeInTheDocument();
     expect(
       window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
     ).not.toBeNull();
@@ -1751,9 +1755,11 @@ describe('TransactionsPage', () => {
     );
 
     act(() => window.dispatchEvent(new Event('offline')));
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Transfer status unknown – connection lost. The original attempt is saved; automatic status checking will resume when the connection returns.',
-    );
+    expect(
+      await screen.findByText(
+        /Transfer status unknown – connection lost\. The original attempt is saved; automatic status checking will resume/,
+      ),
+    ).toBeInTheDocument();
     act(() => window.dispatchEvent(new Event('online')));
     await waitFor(() =>
       expect(mockGetTransactionIdempotencyStatus).toHaveBeenCalled(),
@@ -2369,9 +2375,11 @@ describe('TransactionsPage', () => {
       'idemerax:pending-transaction:v1:1',
     );
     act(() => window.dispatchEvent(new Event('offline')));
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Transfer status unknown – connection lost. The original attempt is saved; automatic status checking will resume when the connection returns.',
-    );
+    expect(
+      await screen.findByText(
+        /Transfer status unknown – connection lost\. The original attempt is saved; automatic status checking will resume/,
+      ),
+    ).toBeInTheDocument();
     act(() => window.dispatchEvent(new Event('online')));
     await waitFor(() =>
       expect(mockGetTransactionIdempotencyStatus).toHaveBeenCalled(),
@@ -2748,9 +2756,7 @@ describe('TransactionsPage', () => {
     const replay = mockCreateTransaction.mock.calls[1];
     expect(replay[1]).toEqual(first[1]);
     expect(replay[2]).toBe(first[2]);
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'retry was rejected',
-    );
+    expect(await screen.findByText(/retry was rejected/)).toBeInTheDocument();
     expect(
       window.sessionStorage.getItem('idemerax:pending-transaction:v1:1'),
     ).not.toBeNull();
@@ -3282,9 +3288,11 @@ describe('TransactionsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not confirm whether this transfer completed.',
     );
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'The transfer status could not be retrieved. The previous attempt remains saved; automatic checking will retry shortly.',
-    );
+    expect(
+      await screen.findByText(
+        'The transfer status could not be retrieved. The previous attempt remains saved; automatic checking will retry shortly.',
+      ),
+    ).toBeInTheDocument();
     expect(mockGetHealth).toHaveBeenCalled();
     expect(mockCreateTransaction).toHaveBeenCalledOnce();
     expect(

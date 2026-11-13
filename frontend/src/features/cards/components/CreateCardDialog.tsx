@@ -1,11 +1,15 @@
 import { useState, type FormEvent } from 'react';
 
 import type { Account } from '../../accounts/api/accounts';
-import type { ManagedCard } from '../api/cards';
+
+type DialogCard = {
+  account_id: number;
+  status: string;
+};
 
 interface CreateCardDialogProps {
   accounts: Account[];
-  cards: ManagedCard[];
+  cards: DialogCard[];
   isSubmitting: boolean;
   error: string | null;
   onClose: () => void;
@@ -54,7 +58,7 @@ function CreateCardDialog({
       >
         <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
               Card management
             </p>
             <h2
@@ -111,7 +115,7 @@ function CreateCardDialog({
                   key={account.id}
                   className={`flex min-w-0 cursor-pointer items-start gap-3 rounded-xl border p-3 transition sm:p-4 ${
                     selectedAccountId === account.id
-                      ? 'border-cyan-400/60 bg-cyan-400/5'
+                      ? 'border-blue-500/70 bg-blue-600/10'
                       : 'border-slate-700 bg-slate-900/60 hover:border-slate-600'
                   }`}
                 >
@@ -121,7 +125,7 @@ function CreateCardDialog({
                     value={account.id}
                     checked={selectedAccountId === account.id}
                     onChange={() => setSelectedAccountId(account.id)}
-                    className="mt-1 accent-cyan-400"
+                    className="mt-1 accent-blue-500"
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex min-w-0 flex-wrap items-center justify-between gap-2">
@@ -193,7 +197,7 @@ function CreateCardDialog({
           <p className="flex items-start gap-2 text-xs leading-5 text-slate-400">
             <svg
               viewBox="0 0 24 24"
-              className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300"
+              className="mt-0.5 h-4 w-4 shrink-0 text-blue-300"
               fill="none"
               aria-hidden="true"
             >
@@ -244,7 +248,7 @@ function CreateCardDialog({
                 selectedAccountId === null ||
                 hasReachedActiveCardLimit
               }
-              className="min-h-11 w-full rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="min-h-11 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-[#0a1827] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {isSubmitting
                 ? 'Creating card…'

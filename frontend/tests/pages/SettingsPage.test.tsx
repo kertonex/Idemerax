@@ -14,6 +14,7 @@ const {
   mockUseAuth,
   mockUseTheme,
   mockUseTranslation,
+  mockNavigate,
 } = vi.hoisted(() => ({
   mockGetSettings: vi.fn(),
   mockUpdateNotifications: vi.fn(),
@@ -26,7 +27,16 @@ const {
   mockUseAuth: vi.fn(),
   mockUseTheme: vi.fn(),
   mockUseTranslation: vi.fn(),
+  mockNavigate: vi.fn(),
 }));
+
+vi.mock('react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock('../../src/features/settings/api/settings', () => ({
   getSettings: mockGetSettings,
@@ -100,12 +110,13 @@ function renderSettingsPage() {
 
 async function openSettingsTab(tabName: string) {
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: tabName }));
+  await user.click(screen.getByRole('tab', { name: tabName }));
 }
 
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigate.mockReset();
     mockGetSettings.mockResolvedValue(SETTINGS_RESPONSE);
     mockUpdateNotifications.mockResolvedValue({});
     mockUpdatePreferences.mockResolvedValue({});
@@ -287,6 +298,9 @@ describe('SettingsPage', () => {
       expect(await screen.findByRole('status')).toHaveTextContent(
         'settings.profileConfirmed',
       );
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+        replace: true,
+      });
     });
 
     it('displays an error when saving the profile fails', async () => {

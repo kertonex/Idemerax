@@ -8,6 +8,8 @@ import {
   register,
 } from '../../../../src/features/authentication/api/authentication';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 describe('authentication api', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -27,7 +29,7 @@ describe('authentication api', () => {
     await login(credentials);
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/login',
+      `${API_BASE_URL}/auth/login`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(credentials),
@@ -44,7 +46,7 @@ describe('authentication api', () => {
     await register(credentials);
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/register',
+      `${API_BASE_URL}/auth/register`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(credentials),
@@ -58,7 +60,7 @@ describe('authentication api', () => {
     await getCurrentUser(accessToken);
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/me',
+      `${API_BASE_URL}/auth/me`,
       expect.objectContaining({
         headers: expect.any(Headers),
       }),
@@ -74,7 +76,7 @@ describe('authentication api', () => {
     await refreshAccessToken();
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/refresh',
+      `${API_BASE_URL}/auth/refresh`,
       expect.objectContaining({
         method: 'POST',
       }),
@@ -85,7 +87,7 @@ describe('authentication api', () => {
     await logout();
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/logout',
+      `${API_BASE_URL}/auth/logout`,
       expect.objectContaining({
         method: 'POST',
       }),

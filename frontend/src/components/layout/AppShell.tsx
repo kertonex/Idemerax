@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import Header from './Header';
 import MainContent from './MainContent';
 import Sidebar from './Sidebar';
 
@@ -10,15 +9,10 @@ interface AppShellProps {
 
 function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="flex min-h-screen">
-        <Sidebar />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Header />
-
-          <MainContent>{children}</MainContent>
-        </div>
+    <div className="flex min-h-screen min-w-0 flex-col bg-slate-950 text-white md:flex-row">
+      <Sidebar />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <MainContent>{children}</MainContent>
       </div>
     </div>
   );

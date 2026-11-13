@@ -6,7 +6,6 @@ export type AppIconName =
   | 'cards'
   | 'transactions'
   | 'settings'
-  | 'reliability'
   | 'user'
   | 'wallet'
   | 'activity'
@@ -17,7 +16,8 @@ export type AppIconName =
   | 'arrow-up-right'
   | 'arrow-down-left'
   | 'log-out'
-  | 'chevron-right';
+  | 'chevron-right'
+  | 'menu';
 
 interface AppIconProps {
   name: AppIconName;
@@ -53,12 +53,6 @@ const iconArtwork: Record<AppIconName, ReactNode> = {
     <>
       <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
       <path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z" />
-    </>
-  ),
-  reliability: (
-    <>
-      <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />
-      <path d="m8.5 12 2.2 2.2 4.8-5" />
     </>
   ),
   user: (
@@ -106,6 +100,7 @@ const iconArtwork: Record<AppIconName, ReactNode> = {
     </>
   ),
   'chevron-right': <path d="m9 18 6-6-6-6" />,
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
 };
 
 function AppIcon({

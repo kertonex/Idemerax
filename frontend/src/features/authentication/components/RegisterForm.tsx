@@ -163,7 +163,7 @@ function RegisterForm() {
        * setAccessToken() also loads /auth/me, which gives the auth
        * provider the authoritative profile_complete value.
        *
-       * New registrations are intentionally sent to Settings first.
+       * New users complete their required profile before accessing the Dashboard.
        */
       setAccessToken(response.access_token);
       localStorage.setItem('idemerax_auth', 'login');
