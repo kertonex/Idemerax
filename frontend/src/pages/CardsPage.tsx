@@ -365,7 +365,7 @@ function CardsPage() {
               setCreateError(null);
               setIsCreateDialogOpen(true);
             }}
-            className="mt-6 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+            className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-slate-950"
           >
             Create your first card
           </button>
@@ -612,7 +612,7 @@ function PageHeader({
         <button
           type="button"
           onClick={onCreate}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 sm:w-auto md:shrink-0"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/60 focus:ring-offset-2 focus:ring-offset-slate-950 sm:w-auto md:shrink-0"
         >
           <svg
             viewBox="0 0 24 24"
