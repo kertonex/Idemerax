@@ -532,7 +532,7 @@ function TransactionForm({
             {ibanIsValid && accessToken && (
               <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
                 {isLoadingBankDetails ? (
-                  <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+                  <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-2">
                       <div className="h-4 w-28 animate-pulse rounded bg-slate-800" />
                       <div className="h-3 w-36 animate-pulse rounded bg-slate-800" />
@@ -540,8 +540,12 @@ function TransactionForm({
                     <div className="h-7 w-28 animate-pulse rounded-full bg-slate-800" />
                   </div>
                 ) : bankDetails ? (
-                  <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-                    <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className="flex min-w-0 flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 ring-1 ring-blue-500/20">
                         <svg
                           viewBox="0 0 24 24"
@@ -559,23 +563,23 @@ function TransactionForm({
                         </svg>
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-semibold text-slate-100">
                           {bankDetails.bank_name}
                         </p>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
+                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                           <span className="font-medium uppercase tracking-wide text-slate-500">
                             BIC
                           </span>
                           <span className="h-3.5 w-px bg-slate-700" />
-                          <span className="font-mono tracking-wide text-slate-400">
+                          <span className="min-w-0 break-all font-mono tracking-wide text-slate-400">
                             {bankDetails.bic}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                    <span className="inline-flex max-w-full shrink-0 self-start items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20 sm:self-center">
                       <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400/15">
                         <svg
                           viewBox="0 0 24 24"

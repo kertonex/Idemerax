@@ -19,6 +19,44 @@ import TransactionHistory from '../features/transactions/components/TransactionH
 
 type TransactionMode = 'send' | 'receive' | 'history';
 
+function TransactionTabIcon({ tab }: { tab: TransactionMode }) {
+  const common = {
+    className: 'h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    viewBox: '0 0 24 24',
+    'aria-hidden': true as const,
+  };
+
+  switch (tab) {
+    case 'send':
+      return (
+        <svg {...common}>
+          <path d="M7 17 17 7" />
+          <path d="M7 7h10v10" />
+        </svg>
+      );
+    case 'receive':
+      return (
+        <svg {...common}>
+          <path d="M7 7 17 17" />
+          <path d="M7 17h10V7" />
+        </svg>
+      );
+    case 'history':
+      return (
+        <svg {...common}>
+          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+  }
+}
+
 type PendingTransactionAttempt = {
   key: string;
   signature: string;
@@ -1161,7 +1199,7 @@ function TransactionsPageContent({
   }
 
   function getTabClass(tab: TransactionMode): string {
-    return `rounded-lg px-4 py-2.5 text-sm font-medium transition sm:px-5 ${
+    return `flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-2.5 text-center text-[11px] font-medium leading-tight transition sm:gap-2 sm:px-5 sm:text-sm ${
       mode === tab
         ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
         : 'text-slate-400 hover:text-white'
@@ -1386,7 +1424,7 @@ function TransactionsPageContent({
       <div
         role="tablist"
         aria-label="Transaction sections"
-        className="flex w-full flex-wrap gap-1 rounded-xl border border-slate-700/80 bg-slate-950/70 p-1 sm:w-fit"
+        className="grid w-full grid-cols-3 gap-1 rounded-xl border border-slate-700/80 bg-slate-950/70 p-1 sm:flex sm:w-fit"
       >
         <button
           type="button"
@@ -1397,7 +1435,8 @@ function TransactionsPageContent({
           onClick={() => changeMode('send')}
           className={getTabClass('send')}
         >
-          Send Money
+          <TransactionTabIcon tab="send" />
+          <span>Send Money</span>
         </button>
 
         <button
@@ -1409,7 +1448,8 @@ function TransactionsPageContent({
           onClick={() => changeMode('receive')}
           className={getTabClass('receive')}
         >
-          Receive Money
+          <TransactionTabIcon tab="receive" />
+          <span>Receive Money</span>
         </button>
 
         <button
@@ -1421,7 +1461,8 @@ function TransactionsPageContent({
           onClick={() => changeMode('history')}
           className={getTabClass('history')}
         >
-          Transaction History
+          <TransactionTabIcon tab="history" />
+          <span>Transaction History</span>
         </button>
       </div>
 

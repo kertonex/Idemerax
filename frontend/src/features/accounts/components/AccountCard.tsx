@@ -21,6 +21,38 @@ function formatBalance(balance: string): string {
   }).format(amount);
 }
 
+async function copyTextToClipboard(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // Fall back for mobile browsers or contexts where Clipboard API is blocked.
+    }
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = value;
+  textArea.setAttribute('readonly', '');
+  textArea.setAttribute('aria-hidden', 'true');
+  textArea.style.position = 'fixed';
+  textArea.style.top = '0';
+  textArea.style.left = '-9999px';
+  textArea.style.opacity = '0';
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  textArea.setSelectionRange(0, textArea.value.length);
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textArea);
+
+  if (!copied) {
+    throw new Error('Clipboard copy is not supported by this browser.');
+  }
+}
+
 function formatIban(iban: string): string {
   return iban
     .replace(/\s+/g, '')
@@ -51,7 +83,7 @@ function AccountCard({ account }: AccountCardProps) {
 
   async function handleCopyIban() {
     try {
-      await navigator.clipboard.writeText(account.iban);
+      await copyTextToClipboard(account.iban);
       setIsCopied(true);
 
       window.setTimeout(() => {
@@ -64,7 +96,7 @@ function AccountCard({ account }: AccountCardProps) {
 
   async function handleCopyBic() {
     try {
-      await navigator.clipboard.writeText(account.bic);
+      await copyTextToClipboard(account.bic);
       setIsBicCopied(true);
 
       window.setTimeout(() => {
@@ -206,17 +238,17 @@ function AccountCard({ account }: AccountCardProps) {
             <span className="text-sm text-slate-200">Personal</span>
           </div>
 
-          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:px-7">
+          <div className="grid min-w-0 gap-2 px-4 py-4 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-center sm:px-7">
             <span className="text-sm font-medium text-slate-400">IBAN</span>
 
-            <span className="break-all font-mono text-sm tracking-wide text-slate-200 sm:break-normal">
+            <span className="min-w-0 break-all font-mono text-sm tracking-wide text-slate-200 [overflow-wrap:anywhere] sm:break-normal">
               {formattedIban}
             </span>
 
             <button
               type="button"
               onClick={handleCopyIban}
-              className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="inline-flex min-h-11 w-fit shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               aria-label={isCopied ? 'IBAN copied' : 'Copy IBAN'}
             >
               <svg
@@ -235,17 +267,17 @@ function AccountCard({ account }: AccountCardProps) {
             </button>
           </div>
 
-          <div className="grid gap-2 px-6 py-4 sm:grid-cols-[120px_1fr_auto] sm:items-center sm:px-7">
+          <div className="grid min-w-0 gap-2 px-4 py-4 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-center sm:px-7">
             <span className="text-sm font-medium text-slate-400">BIC</span>
 
-            <span className="font-mono text-sm tracking-wide text-slate-200">
+            <span className="min-w-0 break-all font-mono text-sm tracking-wide text-slate-200 [overflow-wrap:anywhere] sm:break-normal">
               {account.bic}
             </span>
 
             <button
               type="button"
               onClick={handleCopyBic}
-              className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="inline-flex min-h-11 w-fit shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-blue-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               aria-label={isBicCopied ? 'BIC copied' : 'Copy BIC'}
             >
               <svg
