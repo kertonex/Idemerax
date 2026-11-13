@@ -5,12 +5,28 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Full 40-character commit SHA to validate'
+        required: true
+        type: string
+
+# Cancel obsolete runs for the same branch or selected manual commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Start with no token permissions; each job receives only what it needs.
+permissions: {}
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
-    # Allow the workflow to read the repository and upload coverage artifacts.
+    # Gitleaks and the existing PR coverage comment need PR write access.
+    # Keep this permission limited to the main validation job.
     permissions:
       contents: read
       pull-requests: write
@@ -60,18 +76,32 @@ jobs:
           --health-retries=5
 
     steps:
-      # Check out the exact repository revision that triggered the workflow.
+      # Validate the manual SHA before using it as a checkout ref.
+      - name: Validate selected commit SHA
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SELECTED_SHA: ${{ inputs.commit_sha }}
+        run: |
+          if [[ ! "$SELECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "commit_sha must be a full 40-character hexadecimal SHA."
+            exit 1
+          fi
+
       # Full history is required by Gitleaks for repository-wide secret scanning.
+      # Manual runs check out the exact requested commit; automatic runs use
+      # the event commit.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       # Scan the repository for accidentally committed secrets.
       # The scan checks the repository history for passwords, API keys,
       # tokens, and other potentially exposed credentials.
       - name: Run secret scan
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@v3.0.0 # immutable release tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -79,7 +109,7 @@ jobs:
       # Only HIGH and CRITICAL vulnerabilities with an available fix
       # fail the CI pipeline.
       - name: Scan project dependencies
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -92,7 +122,7 @@ jobs:
       # Use the Python version defined by the repository instead of
       # duplicating the version inside the workflow configuration.
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version-file: backend/.python-version
 
@@ -142,6 +172,10 @@ jobs:
         working-directory: backend
         run: uv run ruff check .
 
+      - name: Check backend formatting
+        working-directory: backend
+        run: uv run ruff format --check .
+
       # Run Bandit security analysis against the Python backend.
       # The scan checks for common security issues in Python code.
       - name: Run backend security scan
@@ -151,7 +185,7 @@ jobs:
       # Upload the backend Cobertura coverage report as a GitHub Actions artifact.
       # Coverage is available from the workflow run without enforcing a threshold.
       - name: Upload backend coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-coverage
           path: backend/coverage.xml
@@ -166,7 +200,7 @@ jobs:
       # This checks the actual runtime image, including the base OS,
       # Python runtime, installed Python packages and other binaries.
       - name: Scan backend Docker image
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: idemerax-backend:ci
           scanners: vuln
@@ -200,7 +234,7 @@ jobs:
       # Set up the Node.js environment used by the frontend.
       # The npm cache is based on the committed lockfile for reproducibility.
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -238,7 +272,7 @@ jobs:
       # Upload the frontend Cobertura coverage report as a GitHub Actions artifact.
       # Coverage is available from the workflow run without enforcing a threshold.
       - name: Upload frontend coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-coverage
           path: frontend/coverage/cobertura-coverage.xml
@@ -258,7 +292,7 @@ jobs:
       # Scan the complete frontend Docker image.
       # This checks the actual nginx runtime image and its installed packages.
       - name: Scan frontend Docker image
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: idemerax-frontend:ci
           scanners: vuln
@@ -315,6 +349,7 @@ jobs:
   codeql:
     name: CodeQL security scanning
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     permissions:
       contents: read
@@ -330,17 +365,72 @@ jobs:
     steps:
       # Check out the repository revision that triggered the workflow.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha || github.sha }}
+          persist-credentials: false
 
       # Initialize CodeQL for the selected source language.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: ${{ matrix.language }}
 
       # Analyze the source code and upload the security results
       # to GitHub's code scanning interface.
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: "/language:${{ matrix.language }}"
+          # CodeQL otherwise associates a manual run with the workflow's
+          # selected branch HEAD instead of the historical commit under test.
+          ref: ${{ github.ref }}
+          sha: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha || github.sha }}
+
+
+  # Attach the result of a manual historical-commit validation to that exact SHA.
+  publish-manual-commit-status:
+    name: Publish selected commit status
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs:
+      - ci
+      - codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: Validate selected commit SHA
+        id: selected
+        env:
+          SELECTED_SHA: ${{ inputs.commit_sha }}
+        run: |
+          if [[ ! "$SELECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "commit_sha must be a full 40-character hexadecimal SHA."
+            exit 1
+          fi
+          echo "sha=$SELECTED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Publish validation result
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SELECTED_SHA: ${{ steps.selected.outputs.sha }}
+          CI_RESULT: ${{ needs.ci.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [[ "$CI_RESULT" == "success" && "$CODEQL_RESULT" == "success" ]]; then
+            STATE="success"
+            DESCRIPTION="All CI and CodeQL checks passed for this commit"
+          else
+            STATE="failure"
+            DESCRIPTION="One or more CI or CodeQL checks failed or were cancelled"
+          fi
+
+          gh api --method POST "repos/$GH_REPO/statuses/$SELECTED_SHA" \\
+            -f state="$STATE" \\
+            -f context="CI / selected commit validation" \\
+            -f description="$DESCRIPTION" \\
+            -f target_url="$RUN_URL"
