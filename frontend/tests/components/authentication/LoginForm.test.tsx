@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router';
 import LoginForm from '../../../src/features/authentication/components/LoginForm';
 import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 /** Render the login form with its required application providers. */
 function renderLoginForm() {
   return render(
@@ -65,7 +66,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/auth/login',
+      `${API_BASE_URL}/auth/login`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({

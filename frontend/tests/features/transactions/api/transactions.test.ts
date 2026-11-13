@@ -14,6 +14,8 @@ import {
   type TransactionIdempotencyStatus,
 } from '../../../../src/features/transactions/api/transactions';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 describe('getIbanBankDetails', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -46,7 +48,7 @@ describe('getIbanBankDetails', () => {
     const [url, options] = fetchMock.mock.calls[0];
 
     expect(url).toBe(
-      'http://localhost:8000/transactions/bank-details?iban=DE87123456781234567890',
+      `${API_BASE_URL}/transactions/bank-details?iban=DE87123456781234567890`,
     );
 
     expect(options).toMatchObject({
@@ -100,7 +102,7 @@ describe('createTransaction', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions');
+    expect(url).toBe(`${API_BASE_URL}/transactions`);
 
     expect(options).toMatchObject({
       method: 'POST',
@@ -165,7 +167,7 @@ describe('createTransaction', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions');
+    expect(url).toBe(`${API_BASE_URL}/transactions`);
 
     expect(options).toMatchObject({
       method: 'POST',
@@ -282,7 +284,7 @@ describe('getTransactionIdempotencyStatus', () => {
     const [url, options] = fetchMock.mock.calls[0];
 
     expect(url).toBe(
-      'http://localhost:8000/transactions/idempotency/test-idempotency-key',
+      `${API_BASE_URL}/transactions/idempotency/test-idempotency-key`,
     );
 
     expect(options).toMatchObject({
@@ -320,7 +322,7 @@ describe('getTransactionIdempotencyStatus', () => {
     expect(result).toEqual(response);
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'http://localhost:8000/transactions/idempotency/key%2Fwith%20spaces%3F',
+      `${API_BASE_URL}/transactions/idempotency/key%2Fwith%20spaces%3F`,
     );
   });
 
@@ -458,7 +460,7 @@ describe('getTransactionHistory', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions?limit=10&offset=10');
+    expect(url).toBe(`${API_BASE_URL}/transactions?limit=10&offset=10`);
 
     expect(options).toMatchObject({
       credentials: 'include',
@@ -493,7 +495,7 @@ describe('getTransactionHistory', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions?limit=10&offset=0');
+    expect(url).toBe(`${API_BASE_URL}/transactions?limit=10&offset=0`);
 
     expect(options).toMatchObject({
       credentials: 'include',
@@ -527,7 +529,7 @@ describe('getTransactionHistory', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions?limit=5&offset=15');
+    expect(url).toBe(`${API_BASE_URL}/transactions?limit=5&offset=15`);
 
     expect(new Headers(options?.headers).get('Authorization')).toBe(
       'Bearer another-access-token',
@@ -554,7 +556,7 @@ describe('getTransactionHistory', () => {
     await getTransactionHistory('test-access-token', 25, 50);
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'http://localhost:8000/transactions?limit=25&offset=50',
+      `${API_BASE_URL}/transactions?limit=25&offset=50`,
     );
   });
 
@@ -610,7 +612,7 @@ describe('getPendingTransactionRecovery', () => {
 
     const [url, options] = fetchMock.mock.calls[0];
 
-    expect(url).toBe('http://localhost:8000/transactions/idempotency/pending');
+    expect(url).toBe(`${API_BASE_URL}/transactions/idempotency/pending`);
     expect(options).toMatchObject({ credentials: 'include' });
     expect(new Headers(options?.headers).get('Authorization')).toBe(
       'Bearer test-access-token',
@@ -686,7 +688,7 @@ describe('resumeTransaction', () => {
     const [url, options] = fetchMock.mock.calls[0];
 
     expect(url).toBe(
-      'http://localhost:8000/transactions/idempotency/pending-transfer-key/resume',
+      `${API_BASE_URL}/transactions/idempotency/pending-transfer-key/resume`,
     );
     expect(options).toMatchObject({
       method: 'POST',
@@ -729,7 +731,7 @@ describe('resumeTransaction', () => {
     ).resolves.toEqual(response);
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'http://localhost:8000/transactions/idempotency/key%2Fwith%20spaces%3F/resume',
+      `${API_BASE_URL}/transactions/idempotency/key%2Fwith%20spaces%3F/resume`,
     );
   });
 

@@ -7,6 +7,7 @@ import {
   type AuthContextValue,
 } from '../../src/features/authentication/context/AuthContext';
 import AppRoutes from '../../src/routes/AppRoutes';
+import { ThemeProvider } from '../../src/features/settings/context/ThemeProvider';
 
 vi.mock('../../src/shared/api/health', () => ({
   getHealth: vi.fn().mockResolvedValue({ status: 'ok' }),
@@ -37,9 +38,11 @@ vi.mock('../../src/features/dashboard/api/dashboard', () => ({
 function renderRoutes(initialPath: string, authState: AuthContextValue) {
   return render(
     <AuthContext.Provider value={authState}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <AppRoutes />
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </ThemeProvider>
     </AuthContext.Provider>,
   );
 }
@@ -94,6 +97,24 @@ describe('AppRoutes authentication protection', () => {
 
     expect(
       screen.getByRole('heading', { name: 'Welcome back' }),
+    ).toBeInTheDocument();
+  });
+
+  it('redirects authenticated users with incomplete profiles to profile setup', () => {
+    const incompleteProfileState: AuthContextValue = {
+      ...authenticatedState,
+      currentUser: {
+        ...authenticatedState.currentUser!,
+        first_name: '',
+        last_name: '',
+        profile_complete: false,
+      },
+    };
+
+    renderRoutes('/dashboard', incompleteProfileState);
+
+    expect(
+      screen.getByRole('heading', { name: 'settings.setupTitle' }),
     ).toBeInTheDocument();
   });
 

@@ -1,66 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render } from '@testing-library/react';
 
-import { logout } from '../../../src/features/authentication/api/authentication';
 import Header from '../../../src/components/layout/Header';
-import {
-  AuthContext,
-  type AuthContextValue,
-} from '../../../src/features/authentication/context/AuthContext';
-
-vi.mock('../../../src/features/authentication/api/authentication', () => ({
-  logout: vi.fn(),
-}));
 
 describe('Header', () => {
-  it('renders the sign out button', () => {
-    const authState: AuthContextValue = {
-      accessToken: 'test-token',
-      currentUser: null,
-      isLoading: false,
-      isAuthenticated: true,
-      setAccessToken: vi.fn(),
-      setCurrentUser: vi.fn(),
-      clearAccessToken: vi.fn(),
-    };
+  it('does not render a duplicate header because navigation is provided by Sidebar', () => {
+    const { container } = render(<Header />);
 
-    render(
-      <AuthContext.Provider value={authState}>
-        <Header />
-      </AuthContext.Provider>,
-    );
-
-    expect(
-      screen.getByRole('button', { name: 'Sign out' }),
-    ).toBeInTheDocument();
-  });
-
-  it('logs out and clears the access token when signing out', async () => {
-    const clearAccessToken = vi.fn();
-
-    vi.mocked(logout).mockResolvedValue(undefined);
-
-    const authState: AuthContextValue = {
-      accessToken: 'test-access-token',
-      currentUser: null,
-      isAuthenticated: true,
-      isLoading: false,
-      setAccessToken: vi.fn(),
-      setCurrentUser: vi.fn(),
-      clearAccessToken,
-    };
-
-    render(
-      <AuthContext.Provider value={authState}>
-        <Header />
-      </AuthContext.Provider>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-
-    await waitFor(() => {
-      expect(logout).toHaveBeenCalledOnce();
-      expect(clearAccessToken).toHaveBeenCalledOnce();
-    });
+    expect(container).toBeEmptyDOMElement();
   });
 });

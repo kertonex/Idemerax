@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../../src/shared/api/client';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 describe('apiClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -15,7 +16,7 @@ describe('apiClient', () => {
     const result = await apiClient<{ id: number }>('/accounts');
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8000/accounts',
+      `${API_BASE_URL}/accounts`,
       expect.objectContaining({
         headers: expect.any(Headers),
       }),
