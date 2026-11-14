@@ -62,3 +62,13 @@ export function logout(): Promise<void> {
     method: 'POST',
   });
 }
+
+/** Record recent user activity so the backend can enforce idle-session expiry. */
+export function recordSessionActivity(accessToken: string): Promise<void> {
+  return apiClient<void>('/auth/activity', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
