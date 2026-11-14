@@ -1,15 +1,19 @@
 import {
   act,
+  fireEvent,
   render,
   renderHook,
   screen,
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { apiClient } from '../../../src/shared/api/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getCurrentUser,
+  logout,
+  recordSessionActivity,
   refreshAccessToken,
 } from '../../../src/features/authentication/api/authentication';
 import { AuthProvider } from '../../../src/features/authentication/context/AuthProvider';
@@ -18,10 +22,13 @@ import { useAuth } from '../../../src/features/authentication/context/useAuth';
 vi.mock('../../../src/features/authentication/api/authentication', () => ({
   getCurrentUser: vi.fn(),
   refreshAccessToken: vi.fn(),
+  logout: vi.fn().mockResolvedValue(undefined),
+  recordSessionActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 const ACCESS_TOKEN_STORAGE_KEY = 'idemerax_access_token';
 const AUTH_STORAGE_KEY = 'idemerax_auth';
+const LAST_ACTIVITY_STORAGE_KEY = 'idemerax_last_activity';
 
 function AuthState() {
   const {
@@ -50,6 +57,7 @@ function AuthState() {
 describe('AuthProvider', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -259,6 +267,126 @@ describe('AuthProvider', () => {
     );
   });
 
+  it('updates the provider when an API request automatically refreshes its token', async () => {
+    vi.mocked(refreshAccessToken).mockRejectedValue(
+      new Error('No refresh session'),
+    );
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+    await user.click(screen.getByRole('button', { name: 'Set token' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ detail: 'Invalid credentials.' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            access_token: 'automatically-refreshed-token',
+            token_type: 'bearer',
+          }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ id: 1 }),
+      } as Response);
+
+    await act(async () => {
+      await apiClient('/accounts', {
+        headers: { Authorization: 'Bearer new-access-token' },
+      });
+    });
+
+    expect(screen.getByTestId('access-token')).toHaveTextContent(
+      'automatically-refreshed-token',
+    );
+    expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBe(
+      'automatically-refreshed-token',
+    );
+  });
+
+  it('clears provider authentication when automatic renewal is rejected', async () => {
+    vi.mocked(refreshAccessToken).mockRejectedValue(
+      new Error('No refresh session'),
+    );
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+    await user.click(screen.getByRole('button', { name: 'Set token' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('is-loading')).toHaveTextContent('false');
+    });
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ detail: 'Invalid credentials.' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ detail: 'Invalid refresh session.' }),
+      } as Response);
+
+    await act(async () => {
+      await expect(
+        apiClient('/accounts', {
+          headers: { Authorization: 'Bearer new-access-token' },
+        }),
+      ).rejects.toMatchObject({ status: 401 });
+    });
+
+    expect(screen.getByTestId('access-token')).toHaveTextContent('null');
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
+    expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
   it('clears and removes the access token', async () => {
     sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, 'stored-access-token');
 
@@ -457,5 +585,194 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('access-token')).toHaveTextContent('null');
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
     expect(refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('warns five minutes before logging out after fifteen minutes of inactivity', async () => {
+    vi.useFakeTimers();
+    const now = new Date('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(now);
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, 'active-access-token');
+    localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now.getTime()));
+
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(
+      screen.getByText('Your session is about to expire'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('5:00')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+
+    expect(logout).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
+    expect(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('resets the inactivity deadline when the user chooses to stay signed in', async () => {
+    vi.useFakeTimers();
+    const now = new Date('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(now);
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, 'active-access-token');
+    localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now.getTime()));
+
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Stay signed in' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('synchronizes user activity from another browser tab', async () => {
+    vi.useFakeTimers();
+    const now = new Date('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(now);
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, 'active-access-token');
+    localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now.getTime()));
+
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    const activityFromOtherTab = Date.now();
+    await act(async () => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: LAST_ACTIVITY_STORAGE_KEY,
+          newValue: String(activityFromOtherTab),
+        }),
+      );
+    });
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('sends a server activity heartbeat while the user is active', async () => {
+    vi.useFakeTimers();
+    const now = new Date('2026-11-14T12:00:00.000Z');
+    vi.setSystemTime(now);
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, 'active-access-token');
+    localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now.getTime()));
+
+    vi.mocked(getCurrentUser).mockResolvedValue({
+      id: 1,
+      email: 'user@example.com',
+      role: 'USER',
+      is_active: true,
+      first_name: 'Test',
+      last_name: 'User',
+      profile_complete: true,
+    });
+
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60 * 1000);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    });
+
+    expect(recordSessionActivity).toHaveBeenCalledOnce();
+    expect(recordSessionActivity).toHaveBeenCalledWith('active-access-token');
+    vi.useRealTimers();
   });
 });
