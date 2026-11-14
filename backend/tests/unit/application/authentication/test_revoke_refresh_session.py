@@ -124,3 +124,26 @@ async def test_revoke_refresh_session_does_not_delete_different_session(
         )
 
     refresh_session_repository.delete.assert_awaited_once_with(42)
+
+
+@pytest.mark.anyio
+async def test_revoke_refresh_session_rejects_when_delete_loses_race(
+    revoke_refresh_session_use_case: RevokeRefreshSession,
+    refresh_session_repository: AsyncMock,
+    refresh_session: RefreshSession,
+) -> None:
+    """Reject revocation when another request already consumed the token."""
+    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.delete.return_value = False
+
+    with (
+        patch(
+            "app.application.authentication.revoke_refresh_session.hash_refresh_token",
+            return_value="hashed-refresh-token",
+        ),
+        pytest.raises(
+            RefreshSessionRevocationError,
+            match="Invalid refresh session.",
+        ),
+    ):
+        await revoke_refresh_session_use_case.execute("refresh-token")

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
@@ -7,6 +8,10 @@ from fastapi.testclient import TestClient
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
+from app.application.authentication.renew_access_token import (
+    RefreshSessionError,
+    RenewAccessToken,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -17,6 +22,8 @@ from app.core.security import (
 from app.infrastructure.database.models.refresh_session import RefreshSession
 from app.infrastructure.database.models.user import User
 from app.infrastructure.database.session import SessionFactory
+from app.infrastructure.repositories.refresh_session import RefreshSessionRepository
+from app.infrastructure.repositories.user import UserRepository
 from app.main import app
 
 client = TestClient(app)
@@ -406,6 +413,30 @@ def test_register_rejects_database_unique_violation() -> None:
     }
 
 
+def test_refresh_rejects_untrusted_browser_origin() -> None:
+    """Reject cross-origin browser requests before processing refresh cookies."""
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/auth/refresh",
+            headers={"Origin": "https://attacker.example"},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Request origin is not allowed."}
+
+
+def test_refresh_accepts_configured_browser_origin() -> None:
+    """Allow a configured frontend origin to reach refresh validation."""
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/auth/refresh",
+            headers={"Origin": "http://localhost:5173"},
+        )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid refresh session."}
+
+
 @pytest.mark.anyio
 async def test_refresh_does_not_return_refresh_token_in_response() -> None:
     """Do not expose the rotated refresh token in the response body."""
@@ -446,6 +477,105 @@ async def test_refresh_does_not_return_refresh_token_in_response() -> None:
 
 
 @pytest.mark.anyio
+async def test_refresh_token_can_only_be_rotated_once() -> None:
+    """Reject reuse of the consumed token while accepting the rotated token."""
+    email = f"refresh-reuse-{uuid4()}@example.com"
+    original_refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(
+            RefreshSession(
+                user_id=user.id,
+                token_hash=hash_refresh_token(original_refresh_token),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
+            ),
+        )
+        await session.commit()
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set("__Host-refresh_token", original_refresh_token)
+        first_response = test_client.post("/auth/refresh")
+        rotated_refresh_token = first_response.cookies.get("__Host-refresh_token")
+        assert rotated_refresh_token is not None
+
+        test_client.cookies.set("__Host-refresh_token", original_refresh_token)
+        replay_response = test_client.post("/auth/refresh")
+
+        test_client.cookies.set("__Host-refresh_token", rotated_refresh_token)
+        rotated_response = test_client.post("/auth/refresh")
+
+    assert first_response.status_code == 200
+    assert replay_response.status_code == 401
+    assert rotated_response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_concurrent_refresh_requests_consume_token_only_once() -> None:
+    """Allow only one concurrent request to rotate a given refresh token."""
+    email = f"refresh-concurrent-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(
+            RefreshSession(
+                user_id=user.id,
+                token_hash=hash_refresh_token(refresh_token),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
+            ),
+        )
+        await session.commit()
+
+    async def rotate_refresh_token() -> tuple[str, str]:
+        async with SessionFactory() as session:
+            use_case = RenewAccessToken(
+                refresh_session_repository=RefreshSessionRepository(session),
+                user_repository=UserRepository(session),
+            )
+            try:
+                tokens = await use_case.execute(refresh_token)
+                await session.commit()
+                return tokens
+            except RefreshSessionError:
+                await session.rollback()
+                raise
+
+    with (
+        patch(
+            "app.application.authentication.renew_access_token.create_access_token",
+            return_value="concurrent-access-token",
+        ),
+        patch(
+            "app.application.authentication.renew_access_token.create_refresh_token",
+            side_effect=create_refresh_token,
+        ),
+    ):
+        results = await asyncio.gather(
+            rotate_refresh_token(),
+            rotate_refresh_token(),
+            return_exceptions=True,
+        )
+
+    successful_rotations = [result for result in results if isinstance(result, tuple)]
+    rejected_rotations = [
+        result for result in results if isinstance(result, RefreshSessionError)
+    ]
+    assert len(successful_rotations) == 1
+    assert len(rejected_rotations) == 1
+
+
+@pytest.mark.anyio
 async def test_logout_revokes_refresh_session() -> None:
     """Revoke the refresh session when the user logs out."""
     email = f"logout-{uuid4()}@example.com"
@@ -477,6 +607,12 @@ async def test_logout_revokes_refresh_session() -> None:
         response = test_client.post("/auth/logout")
 
     assert response.status_code == 204
+    set_cookie_header = response.headers.get("set-cookie", "").lower()
+    assert "__host-refresh_token" in set_cookie_header
+    assert "secure" in set_cookie_header
+    assert "httponly" in set_cookie_header
+    assert "samesite=lax" in set_cookie_header
+    assert "max-age=0" in set_cookie_header
 
     async with SessionFactory() as session:
         revoked_session = await session.get(

@@ -66,7 +66,9 @@ async def test_renew_access_token_returns_new_tokens(
     user: User,
 ) -> None:
     """Verify that a valid refresh session produces new tokens."""
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
     user_repository.get_by_id.return_value = user
 
     with (
@@ -94,7 +96,9 @@ async def test_renew_access_token_hashes_refresh_token(
     refresh_session: RefreshSession,
 ) -> None:
     """Verify that the refresh token is hashed before database lookup."""
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
 
     with (
         patch(
@@ -112,7 +116,7 @@ async def test_renew_access_token_hashes_refresh_token(
     ):
         await renew_access_token_use_case.execute("refresh-token")
 
-    refresh_session_repository.get_by_token_hash.assert_awaited_once_with(
+    refresh_session_repository.get_by_token_hash_for_update.assert_awaited_once_with(
         "hashed-refresh-token",
     )
 
@@ -126,7 +130,9 @@ async def test_renew_access_token_rotates_refresh_session(
     user: User,
 ) -> None:
     """Verify that the existing session is replaced with a new session."""
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
     user_repository.get_by_id.return_value = user
 
     with (
@@ -163,7 +169,9 @@ async def test_renew_access_token_creates_new_refresh_session(
     user: User,
 ) -> None:
     """Verify that rotation stores the new refresh token hash."""
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
     user_repository.get_by_id.return_value = user
 
     with (
@@ -198,7 +206,7 @@ async def test_renew_access_token_rejects_unknown_refresh_token(
     refresh_session_repository: AsyncMock,
 ) -> None:
     """Verify that an unknown refresh token is rejected."""
-    refresh_session_repository.get_by_token_hash.return_value = None
+    refresh_session_repository.get_by_token_hash_for_update.return_value = None
 
     with pytest.raises(
         RefreshSessionError,
@@ -215,7 +223,9 @@ async def test_renew_access_token_rejects_expired_session(
 ) -> None:
     """Verify that an expired refresh session is rejected."""
     refresh_session.expires_at = datetime.now(UTC) - timedelta(seconds=1)
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
 
     with pytest.raises(
         RefreshSessionError,
@@ -232,7 +242,9 @@ async def test_renew_access_token_rejects_missing_user(
     refresh_session: RefreshSession,
 ) -> None:
     """Verify that a missing user is rejected."""
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
     user_repository.get_by_id.return_value = None
 
     with pytest.raises(
@@ -252,7 +264,9 @@ async def test_renew_access_token_rejects_inactive_user(
 ) -> None:
     """Verify that an inactive user is rejected."""
     user.is_active = False
-    refresh_session_repository.get_by_token_hash.return_value = refresh_session
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
     user_repository.get_by_id.return_value = user
 
     with pytest.raises(
@@ -260,3 +274,24 @@ async def test_renew_access_token_rejects_inactive_user(
         match="Invalid refresh session.",
     ):
         await renew_access_token_use_case.execute("refresh-token")
+
+
+@pytest.mark.anyio
+async def test_renew_access_token_rejects_session_when_atomic_delete_fails(
+    renew_access_token_use_case: RenewAccessToken,
+    refresh_session_repository: AsyncMock,
+    user_repository: AsyncMock,
+    refresh_session: RefreshSession,
+    user: User,
+) -> None:
+    """Reject rotation if the locked refresh session cannot be consumed."""
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
+    refresh_session_repository.delete.return_value = False
+    user_repository.get_by_id.return_value = user
+
+    with pytest.raises(RefreshSessionError, match="Invalid refresh session."):
+        await renew_access_token_use_case.execute("refresh-token")
+
+    refresh_session_repository.create.assert_not_awaited()

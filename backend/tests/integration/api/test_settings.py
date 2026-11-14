@@ -768,7 +768,12 @@ async def test_change_password_clears_refresh_token_cookie() -> None:
     )
 
     assert response.status_code == 204
-    assert "__Host-refresh_token" in response.headers.get("set-cookie", "")
+    set_cookie_header = response.headers.get("set-cookie", "").lower()
+    assert "__host-refresh_token" in set_cookie_header
+    assert "secure" in set_cookie_header
+    assert "httponly" in set_cookie_header
+    assert "samesite=lax" in set_cookie_header
+    assert "max-age=0" in set_cookie_header
 
 
 @pytest.mark.anyio
