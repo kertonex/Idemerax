@@ -47,6 +47,15 @@ class RefreshSessionRepositoryPort(Protocol):
         """Return and lock a refresh session for atomic token rotation."""
         ...
 
+    async def touch_if_active(
+        self,
+        token_hash: str,
+        now: datetime,
+        inactivity_cutoff: datetime,
+    ) -> bool:
+        """Update activity for a valid, non-idle refresh session."""
+        ...
+
     async def create(
         self,
         user_id: int,

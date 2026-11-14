@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,9 @@ class RefreshSessionRepository:
     ) -> RefreshSession | None:
         """Return a refresh session by token hash without locking it."""
         result = await self.session.execute(
-            select(RefreshSession).where(RefreshSession.token_hash == token_hash),
+            select(RefreshSession).where(
+                RefreshSession.token_hash == token_hash,
+            ),
         )
         return result.scalar_one_or_none()
 
@@ -35,6 +37,25 @@ class RefreshSessionRepository:
             .with_for_update(),
         )
         return result.scalar_one_or_none()
+
+    async def touch_if_active(
+        self,
+        token_hash: str,
+        now: datetime,
+        inactivity_cutoff: datetime,
+    ) -> bool:
+        """Record activity only for a non-expired, non-idle session."""
+        result = await self.session.execute(
+            update(RefreshSession)
+            .where(
+                RefreshSession.token_hash == token_hash,
+                RefreshSession.expires_at > now,
+                RefreshSession.last_activity_at > inactivity_cutoff,
+            )
+            .values(last_activity_at=now)
+            .returning(RefreshSession.id),
+        )
+        return result.scalar_one_or_none() is not None
 
     async def create(
         self,

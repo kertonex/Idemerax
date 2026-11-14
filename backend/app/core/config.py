@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+SESSION_INACTIVITY_TIMEOUT_MINUTES = 15
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""

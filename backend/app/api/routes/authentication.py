@@ -30,7 +30,7 @@ from app.application.authentication.revoke_refresh_session import (
     RefreshSessionRevocationError,
     RevokeRefreshSession,
 )
-from app.core.config import settings
+from app.core.config import SESSION_INACTIVITY_TIMEOUT_MINUTES, settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -226,6 +226,42 @@ async def refresh_access_token(
         "access_token": access_token,
         "token_type": "bearer",  # nosec B105
     }
+
+
+@router.post("/activity", status_code=status.HTTP_204_NO_CONTENT)
+async def record_session_activity(
+    request: Request,
+    refresh_token: str | None = Cookie(
+        default=None,
+        alias=REFRESH_TOKEN_COOKIE,
+    ),
+    _current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Record explicit user activity for the current refresh session."""
+    validate_cookie_request_origin(request)
+
+    if refresh_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh session.",
+        )
+
+    now = datetime.now(UTC)
+    inactivity_cutoff = now - timedelta(
+        minutes=SESSION_INACTIVITY_TIMEOUT_MINUTES,
+    )
+    updated = await RefreshSessionRepository(session).touch_if_active(
+        hash_refresh_token(refresh_token),
+        now,
+        inactivity_cutoff,
+    )
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh session.",
+        )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

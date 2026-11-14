@@ -4,7 +4,7 @@ from app.application.authentication.ports import (
     RefreshSessionRepositoryPort,
     UserRepositoryPort,
 )
-from app.core.config import settings
+from app.core.config import SESSION_INACTIVITY_TIMEOUT_MINUTES, settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -47,10 +47,18 @@ class RenewAccessToken:
                 "Invalid refresh session.",
             )
 
-        if refresh_session.expires_at <= datetime.now(UTC):
+        now = datetime.now(UTC)
+
+        if refresh_session.expires_at <= now:
             raise RefreshSessionError(
                 "Refresh session has expired.",
             )
+
+        inactivity_cutoff = now - timedelta(
+            minutes=SESSION_INACTIVITY_TIMEOUT_MINUTES,
+        )
+        if refresh_session.last_activity_at <= inactivity_cutoff:
+            raise RefreshSessionError("Refresh session has expired due to inactivity.")
 
         user = await self.user_repository.get_by_id(
             refresh_session.user_id,
