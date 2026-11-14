@@ -5,6 +5,7 @@ import {
   refreshAccessToken,
   type AuthenticatedUser,
 } from '../api/authentication';
+import { registerAuthSessionCallbacks } from '../../../shared/api/client';
 import { AuthContext } from './AuthContext';
 
 interface AuthProviderProps {
@@ -76,7 +77,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         if (restored) {
-          setAccessTokenState(storedAccessToken);
+          setAccessTokenState(
+            sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ??
+              storedAccessToken,
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        if (!sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)) {
+          setAccessTokenState(null);
+          setCurrentUserState(null);
           setIsLoading(false);
           return;
         }
@@ -222,6 +233,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setCurrentUserState(null);
     setIsLoading(false);
   }, []);
+
+  const handleAccessTokenRefreshed = useCallback((token: string) => {
+    if (isMountedRef.current) {
+      setAccessTokenState(token);
+    }
+  }, []);
+
+  const handleSessionExpired = useCallback(() => {
+    authOperationRef.current += 1;
+    sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+
+    if (isMountedRef.current) {
+      setAccessTokenState(null);
+      setCurrentUserState(null);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(
+    () =>
+      registerAuthSessionCallbacks({
+        onAccessTokenRefreshed: handleAccessTokenRefreshed,
+        onSessionExpired: handleSessionExpired,
+      }),
+    [handleAccessTokenRefreshed, handleSessionExpired],
+  );
 
   const value = useMemo(
     () => ({
