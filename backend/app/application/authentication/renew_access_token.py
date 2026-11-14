@@ -34,8 +34,12 @@ class RenewAccessToken:
         """Return new access and refresh tokens for a valid session."""
         token_hash = hash_refresh_token(refresh_token)
 
-        refresh_session = await self.refresh_session_repository.get_by_token_hash(
-            token_hash,
+        # Lock the existing row until this request commits. Concurrent refresh
+        # requests using the same token then observe the deletion and are rejected.
+        refresh_session = (
+            await self.refresh_session_repository.get_by_token_hash_for_update(
+                token_hash,
+            )
         )
 
         if refresh_session is None:
@@ -65,9 +69,9 @@ class RenewAccessToken:
             days=settings.refresh_session_expire_days,
         )
 
-        await self.refresh_session_repository.delete(
-            refresh_session.id,
-        )
+        deleted = await self.refresh_session_repository.delete(refresh_session.id)
+        if not deleted:
+            raise RefreshSessionError("Invalid refresh session.")
 
         await self.refresh_session_repository.create(
             user_id=user.id,

@@ -30,6 +30,6 @@ class RevokeRefreshSession:
                 "Invalid refresh session.",
             )
 
-        await self.refresh_session_repository.delete(
-            refresh_session.id,
-        )
+        deleted = await self.refresh_session_repository.delete(refresh_session.id)
+        if not deleted:
+            raise RefreshSessionRevocationError("Invalid refresh session.")

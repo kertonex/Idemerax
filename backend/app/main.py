@@ -7,6 +7,7 @@ from app.api.routes.cards import router as cards_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.transactions import router as transactions_router
+from app.core.config import settings
 
 app = FastAPI(
     title="Idemerax API",
@@ -25,12 +26,10 @@ app.include_router(dashboard_router)
 app.include_router(transactions_router)
 app.include_router(settings_router)
 
-# Allow requests from the local frontend during development.
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

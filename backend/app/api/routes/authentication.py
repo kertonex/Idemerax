@@ -1,6 +1,14 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from psycopg.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,13 +54,25 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 REFRESH_TOKEN_COOKIE = "__Host-refresh_token"  # nosec B105
 
 
+def validate_cookie_request_origin(request: Request) -> None:
+    """Reject browser requests from origins outside the configured allowlist."""
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in settings.allowed_origins:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Request origin is not allowed.",
+        )
+
+
 @router.post("/login")
 async def login(
     credentials: LoginRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Authenticate a user and return an access token."""
+    validate_cookie_request_origin(request)
     user_repository = UserRepository(session)
     authenticate_user = AuthenticateUser(user_repository)
 
@@ -96,10 +116,12 @@ async def login(
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
     credentials: RegisterRequest,
+    request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Register a new user and return an access token."""
+    validate_cookie_request_origin(request)
     user_repository = UserRepository(session)
     account_repository = AccountRepository(session)
 
@@ -157,6 +179,7 @@ async def register(
 
 @router.post("/refresh")
 async def refresh_access_token(
+    request: Request,
     response: Response,
     refresh_token: str | None = Cookie(
         default=None,
@@ -165,6 +188,8 @@ async def refresh_access_token(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, str]:
     """Renew an access token and rotate the refresh token."""
+    validate_cookie_request_origin(request)
+
     if refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -205,6 +230,7 @@ async def refresh_access_token(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    request: Request,
     response: Response,
     refresh_token: str | None = Cookie(
         default=None,
@@ -213,6 +239,8 @@ async def logout(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Revoke the refresh session and clear the refresh token cookie."""
+    validate_cookie_request_origin(request)
+
     if refresh_token is not None:
         refresh_session_repository = RefreshSessionRepository(session)
         revoke_refresh_session = RevokeRefreshSession(
@@ -227,6 +255,9 @@ async def logout(
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE,
         path="/",
+        secure=True,
+        httponly=True,
+        samesite="lax",
     )
 
 

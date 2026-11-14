@@ -1,6 +1,8 @@
 from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models.refresh_session import RefreshSession
@@ -16,11 +18,21 @@ class RefreshSessionRepository:
         self,
         token_hash: str,
     ) -> RefreshSession | None:
-        """Return a refresh session by token hash."""
+        """Return a refresh session by token hash without locking it."""
         result = await self.session.execute(
-            select(RefreshSession).where(
-                RefreshSession.token_hash == token_hash,
-            ),
+            select(RefreshSession).where(RefreshSession.token_hash == token_hash),
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_token_hash_for_update(
+        self,
+        token_hash: str,
+    ) -> RefreshSession | None:
+        """Return and lock a refresh session until the transaction completes."""
+        result = await self.session.execute(
+            select(RefreshSession)
+            .where(RefreshSession.token_hash == token_hash)
+            .with_for_update(),
         )
         return result.scalar_one_or_none()
 
@@ -42,13 +54,15 @@ class RefreshSessionRepository:
 
         return refresh_session
 
-    async def delete(self, refresh_session_id: int) -> None:
-        """Delete a refresh session."""
-        await self.session.execute(
+    async def delete(self, refresh_session_id: int) -> bool:
+        """Delete a refresh session and report whether one row was removed."""
+        result = await self.session.execute(
             delete(RefreshSession).where(
                 RefreshSession.id == refresh_session_id,
             ),
         )
+        cursor_result = cast(CursorResult[Any], result)
+        return cursor_result.rowcount == 1
 
     async def delete_all_by_user_id(self, user_id: int) -> None:
         """Delete all refresh sessions belonging to a user."""

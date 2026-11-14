@@ -40,6 +40,13 @@ class RefreshSessionRepositoryPort(Protocol):
         """Return a refresh session by token hash."""
         ...
 
+    async def get_by_token_hash_for_update(
+        self,
+        token_hash: str,
+    ) -> RefreshSession | None:
+        """Return and lock a refresh session for atomic token rotation."""
+        ...
+
     async def create(
         self,
         user_id: int,
@@ -49,8 +56,8 @@ class RefreshSessionRepositoryPort(Protocol):
         """Create a refresh session."""
         ...
 
-    async def delete(self, refresh_session_id: int) -> None:
-        """Delete a refresh session."""
+    async def delete(self, refresh_session_id: int) -> bool:
+        """Delete a refresh session and report whether it existed."""
         ...
 
     async def delete_all_by_user_id(self, user_id: int) -> None:
