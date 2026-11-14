@@ -501,7 +501,11 @@ async def test_refresh_token_can_only_be_rotated_once() -> None:
     with TestClient(app) as test_client:
         test_client.cookies.set("__Host-refresh_token", original_refresh_token)
         first_response = test_client.post("/auth/refresh")
-        rotated_refresh_token = first_response.cookies.get("__Host-refresh_token")
+        assert first_response.status_code == 200
+
+        rotated_refresh_token = first_response.cookies.get(
+            "__Host-refresh_token",
+        )
         assert rotated_refresh_token is not None
 
         test_client.cookies.set("__Host-refresh_token", original_refresh_token)
@@ -510,7 +514,6 @@ async def test_refresh_token_can_only_be_rotated_once() -> None:
         test_client.cookies.set("__Host-refresh_token", rotated_refresh_token)
         rotated_response = test_client.post("/auth/refresh")
 
-    assert first_response.status_code == 200
     assert replay_response.status_code == 401
     assert rotated_response.status_code == 200
 
@@ -673,3 +676,114 @@ def test_logout_without_refresh_token_succeeds() -> None:
         response = test_client.post("/auth/logout")
 
     assert response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_refresh_rejects_session_after_inactivity_limit() -> None:
+    """Reject refresh tokens whose server-side session has been idle too long."""
+    email = f"refresh-idle-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(
+            RefreshSession(
+                user_id=user.id,
+                token_hash=hash_refresh_token(refresh_token),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
+                last_activity_at=datetime.now(UTC) - timedelta(minutes=16),
+            ),
+        )
+        await session.commit()
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set("__Host-refresh_token", refresh_token)
+        response = test_client.post("/auth/refresh")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid refresh session."}
+
+
+@pytest.mark.anyio
+async def test_session_activity_endpoint_updates_server_timestamp() -> None:
+    """Record authenticated user activity in the refresh-session row."""
+    email = f"session-activity-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+    old_activity = datetime.now(UTC) - timedelta(minutes=5)
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+        refresh_session = RefreshSession(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_token),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+            last_activity_at=old_activity,
+        )
+        session.add(refresh_session)
+        await session.commit()
+        user_id = user.id
+        refresh_session_id = refresh_session.id
+
+    access_token = create_access_token(str(user_id))
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set("__Host-refresh_token", refresh_token)
+        response = test_client.post(
+            "/auth/activity",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    assert response.status_code == 204
+
+    async with SessionFactory() as session:
+        updated_session = await session.get(RefreshSession, refresh_session_id)
+
+    assert updated_session is not None
+    assert updated_session.last_activity_at > old_activity
+
+
+@pytest.mark.anyio
+async def test_session_activity_endpoint_rejects_idle_session() -> None:
+    """Do not allow an already idle session to revive itself through a heartbeat."""
+    email = f"session-activity-idle-{uuid4()}@example.com"
+    refresh_token = create_refresh_token()
+
+    async with SessionFactory() as session:
+        user = User(
+            email=email,
+            password_hash=hash_password("correct-password"),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(
+            RefreshSession(
+                user_id=user.id,
+                token_hash=hash_refresh_token(refresh_token),
+                expires_at=datetime.now(UTC) + timedelta(days=30),
+                last_activity_at=datetime.now(UTC) - timedelta(minutes=16),
+            ),
+        )
+        await session.commit()
+        user_id = user.id
+
+    access_token = create_access_token(str(user_id))
+
+    with TestClient(app) as test_client:
+        test_client.cookies.set("__Host-refresh_token", refresh_token)
+        response = test_client.post(
+            "/auth/activity",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid refresh session."}

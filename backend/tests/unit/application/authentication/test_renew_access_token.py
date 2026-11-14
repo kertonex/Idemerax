@@ -30,6 +30,7 @@ def refresh_session() -> RefreshSession:
         user_id=1,
         token_hash="hashed-refresh-token",
         expires_at=datetime.now(UTC) + timedelta(days=30),
+        last_activity_at=datetime.now(UTC),
     )
 
 
@@ -295,3 +296,26 @@ async def test_renew_access_token_rejects_session_when_atomic_delete_fails(
         await renew_access_token_use_case.execute("refresh-token")
 
     refresh_session_repository.create.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_renew_access_token_rejects_inactive_session(
+    renew_access_token_use_case: RenewAccessToken,
+    refresh_session_repository: AsyncMock,
+    user_repository: AsyncMock,
+    refresh_session: RefreshSession,
+) -> None:
+    """Reject refresh when the session has exceeded the inactivity limit."""
+    refresh_session.last_activity_at = datetime.now(UTC) - timedelta(minutes=16)
+    refresh_session_repository.get_by_token_hash_for_update.return_value = (
+        refresh_session
+    )
+
+    with pytest.raises(
+        RefreshSessionError,
+        match="inactivity",
+    ):
+        await renew_access_token_use_case.execute("refresh-token")
+
+    refresh_session_repository.delete.assert_not_awaited()
+    user_repository.get_by_id.assert_not_awaited()

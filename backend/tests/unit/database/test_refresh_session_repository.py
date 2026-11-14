@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -43,3 +44,49 @@ async def test_delete_returns_false_when_session_is_already_missing() -> None:
     repository = RefreshSessionRepository(session)
 
     assert await repository.delete(12) is False
+
+
+@pytest.mark.anyio
+async def test_touch_if_active_updates_last_activity() -> None:
+    """Update the activity timestamp for a session inside the idle window."""
+    session = AsyncMock()
+    result = Mock()
+    result.scalar_one_or_none.return_value = 12
+    session.execute.return_value = result
+    repository = RefreshSessionRepository(session)
+    now = datetime.now(UTC)
+
+    assert (
+        await repository.touch_if_active(
+            "token-hash",
+            now,
+            now - timedelta(minutes=15),
+        )
+        is True
+    )
+
+    statement = session.execute.await_args.args[0]
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+    assert "UPDATE refresh_sessions" in compiled
+    assert "last_activity_at" in compiled
+    assert "RETURNING" in compiled
+
+
+@pytest.mark.anyio
+async def test_touch_if_active_rejects_missing_or_idle_session() -> None:
+    """Reject activity updates when the refresh session is not eligible."""
+    session = AsyncMock()
+    result = Mock()
+    result.scalar_one_or_none.return_value = None
+    session.execute.return_value = result
+    repository = RefreshSessionRepository(session)
+    now = datetime.now(UTC)
+
+    assert (
+        await repository.touch_if_active(
+            "token-hash",
+            now,
+            now - timedelta(minutes=15),
+        )
+        is False
+    )
