@@ -395,14 +395,17 @@ describe('getTransactionIdempotencyStatus', () => {
   });
 
   it('propagates API errors when the idempotency status cannot be loaded', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const unauthorizedResponse = () =>
       new Response(JSON.stringify({ detail: 'Unauthorized' }), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
         },
-      }),
-    );
+      });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(unauthorizedResponse())
+      .mockResolvedValueOnce(unauthorizedResponse());
 
     await expect(
       getTransactionIdempotencyStatus(
@@ -411,7 +414,8 @@ describe('getTransactionIdempotencyStatus', () => {
       ),
     ).rejects.toThrow();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${API_BASE_URL}/auth/refresh`);
   });
 });
 
@@ -640,19 +644,23 @@ describe('getPendingTransactionRecovery', () => {
   });
 
   it('propagates API errors when pending recovery cannot be loaded', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const unauthorizedResponse = () =>
       new Response(JSON.stringify({ detail: 'Unauthorized' }), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
         },
-      }),
-    );
+      });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(unauthorizedResponse())
+      .mockResolvedValueOnce(unauthorizedResponse());
 
     await expect(
       getPendingTransactionRecovery('expired-access-token'),
     ).rejects.toThrow();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${API_BASE_URL}/auth/refresh`);
   });
 });
 
@@ -757,18 +765,22 @@ describe('resumeTransaction', () => {
   });
 
   it('propagates API errors when a transfer cannot be resumed', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const unauthorizedResponse = () =>
       new Response(JSON.stringify({ detail: 'Unauthorized' }), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
         },
-      }),
-    );
+      });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(unauthorizedResponse())
+      .mockResolvedValueOnce(unauthorizedResponse());
 
     await expect(
       resumeTransaction('expired-access-token', 'pending-transfer-key'),
     ).rejects.toThrow();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe(`${API_BASE_URL}/auth/refresh`);
   });
 });
